@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestFakedriver(t *testing.T) {
+func TestLocalDriver(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "FakeDriver Suite")
+	RunSpecs(t, "LocalDriver Suite")
 }

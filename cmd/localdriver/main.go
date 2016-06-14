@@ -1,4 +1,4 @@
-package localdriver
+package main
 
 import (
 	"flag"
@@ -9,8 +9,9 @@ import (
 	cf_lager "github.com/cloudfoundry-incubator/cf-lager"
 
 	"encoding/json"
+
 	"github.com/cloudfoundry-incubator/cf_http"
-	fakedriver "github.com/cloudfoundry-incubator/localdriver"
+	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/volman/voldriver"
 	"github.com/cloudfoundry-incubator/volman/voldriver/driverhttp"
 	"github.com/pivotal-golang/lager"
@@ -91,25 +92,25 @@ func main() {
 	var logger lager.Logger
 	var logTap *lager.ReconfigurableSink
 
-	var fakeDriverServer ifrit.Runner
+	var localDriverServer ifrit.Runner
 
 	if *transport == "tcp" {
 		logger, logTap = newLogger()
 		defer logger.Info("ends")
-		fakeDriverServer = createFakeDriverServer(logger, *atAddress, *driversPath, *mountDir, false)
+		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, false)
 	} else if *transport == "tcp-json" {
 		logger, logTap = newLogger()
 		defer logger.Info("ends")
-		fakeDriverServer = createFakeDriverServer(logger, *atAddress, *driversPath, *mountDir, true)
+		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, true)
 	} else {
 		logger, logTap = newUnixLogger()
 		defer logger.Info("ends")
 
-		fakeDriverServer = createFakeDriverUnixServer(logger, *atAddress, *driversPath, *mountDir)
+		localDriverServer = createLocalDriverUnixServer(logger, *atAddress, *driversPath, *mountDir)
 	}
 
 	servers := grouper.Members{
-		{"fakedriver-server", fakeDriverServer},
+		{"localdriver-server", localDriverServer},
 	}
 	if dbgAddr := cf_debug_server.DebugAddress(flag.CommandLine); dbgAddr != "" {
 		servers = append(grouper.Members{
@@ -139,12 +140,12 @@ func processRunnerFor(servers grouper.Members) ifrit.Runner {
 	return sigmon.New(grouper.NewOrdered(os.Interrupt, servers))
 }
 
-func createFakeDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool) ifrit.Runner {
-	fileSystem := fakedriver.NewRealFileSystem()
+func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool) ifrit.Runner {
+	fileSystem := localdriver.NewRealFileSystem()
 	advertisedUrl := "http://" + atAddress
-	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "fakedriver", "address": advertisedUrl})
+	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "localdriver", "address": advertisedUrl})
 	if jsonSpec {
-		driverJsonSpec := voldriver.DriverSpec{Name: "fakedriver", Address: advertisedUrl}
+		driverJsonSpec := voldriver.DriverSpec{Name: "localdriver", Address: advertisedUrl}
 
 		if *requireSSL {
 			absCaFile, err := filepath.Abs(*caFile)
@@ -160,13 +161,13 @@ func createFakeDriverServer(logger lager.Logger, atAddress, driversPath, mountDi
 		jsonBytes, err := json.Marshal(driverJsonSpec)
 
 		exitOnFailure(logger, err)
-		err = voldriver.WriteDriverSpec(logger, driversPath, "fakedriver", "json", jsonBytes)
+		err = voldriver.WriteDriverSpec(logger, driversPath, "localdriver", "json", jsonBytes)
 		exitOnFailure(logger, err)
 	} else {
-		err := voldriver.WriteDriverSpec(logger, driversPath, "fakedriver", "spec", []byte(advertisedUrl))
+		err := voldriver.WriteDriverSpec(logger, driversPath, "localdriver", "spec", []byte(advertisedUrl))
 		exitOnFailure(logger, err)
 	}
-	client := fakedriver.NewLocalDriver(&fileSystem, mountDir)
+	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 
@@ -184,21 +185,21 @@ func createFakeDriverServer(logger lager.Logger, atAddress, driversPath, mountDi
 	return server
 }
 
-func createFakeDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
-	fileSystem := fakedriver.NewRealFileSystem()
-	client := fakedriver.NewLocalDriver(&fileSystem, mountDir)
+func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
+	fileSystem := localdriver.NewRealFileSystem()
+	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 	return http_server.NewUnixServer(atAddress, handler)
 }
 
 func newLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	logger, reconfigurableSink := cf_lager.New("fakedriverServer")
+	logger, reconfigurableSink := cf_lager.New("local-driver-server")
 	return logger, reconfigurableSink
 }
 
 func newUnixLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	logger, reconfigurableSink := cf_lager.New("fakedriverServer")
+	logger, reconfigurableSink := cf_lager.New("local-driver-server")
 	return logger, reconfigurableSink
 }
 

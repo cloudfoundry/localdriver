@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	fakedriver "github.com/cloudfoundry-incubator/localdriver"
+	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/volman/voldriver"
 	"github.com/cloudfoundry-incubator/volman/volmanfakes"
 	. "github.com/onsi/ginkgo"
@@ -17,16 +17,16 @@ import (
 var _ = Describe("Local Driver", func() {
 	var logger lager.Logger
 	var fakeFileSystem *volmanfakes.FakeFileSystem
-	var localDriver *fakedriver.LocalDriver
+	var localDriver *localdriver.LocalDriver
 	var mountDir string
 
 	BeforeEach(func() {
-		logger = lagertest.NewTestLogger("fakedriver-local")
+		logger = lagertest.NewTestLogger("localdriver-local")
 
 		mountDir = "/path/to/mount"
 
 		fakeFileSystem = &volmanfakes.FakeFileSystem{}
-		localDriver = fakedriver.NewLocalDriver(fakeFileSystem, mountDir)
+		localDriver = localdriver.NewLocalDriver(fakeFileSystem, mountDir)
 	})
 
 	Describe("#Activate", func() {
