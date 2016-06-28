@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	cf_lager "code.cloudfoundry.org/cflager"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
-	cf_lager "github.com/cloudfoundry-incubator/cf-lager"
 
 	"encoding/json"
 
