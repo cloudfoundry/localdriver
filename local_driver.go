@@ -7,8 +7,8 @@ import (
 
 	"strings"
 
+	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/voldriver"
-	"github.com/pivotal-golang/lager"
 )
 
 const RootDir = "_volumes/"

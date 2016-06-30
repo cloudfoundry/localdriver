@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/voldriver"
 	"github.com/cloudfoundry-incubator/volman/volmanfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/pivotal-golang/lager"
-	"github.com/pivotal-golang/lager/lagertest"
 )
 
 var _ = Describe("Local Driver", func() {

@@ -11,10 +11,10 @@ import (
 	"encoding/json"
 
 	"code.cloudfoundry.org/cfhttp"
+	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/voldriver"
 	"github.com/cloudfoundry-incubator/voldriver/driverhttp"
-	"github.com/pivotal-golang/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
