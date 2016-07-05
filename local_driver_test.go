@@ -12,8 +12,6 @@ import (
 	"github.com/cloudfoundry-incubator/localdriver/localdriverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/lager/lagertest"
 )
 
 var _ = Describe("Local Driver", func() {
