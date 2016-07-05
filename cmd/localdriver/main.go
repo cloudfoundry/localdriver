@@ -4,14 +4,13 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-
-	cf_lager "code.cloudfoundry.org/cflager"
-	cf_debug_server "code.cloudfoundry.org/debugserver"
-
 	"encoding/json"
 
-	"code.cloudfoundry.org/cfhttp"
+	cf_debug_server "code.cloudfoundry.org/debugserver"
+	cf_lager "code.cloudfoundry.org/cflager"
+	cf_http "code.cloudfoundry.org/cfhttp"
 	"code.cloudfoundry.org/lager"
+
 	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/voldriver"
 	"github.com/cloudfoundry-incubator/voldriver/driverhttp"
@@ -173,7 +172,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 
 	var server ifrit.Runner
 	if *requireSSL {
-		tlsConfig, err := cfhttp.NewTLSConfig(*certFile, *keyFile, *caFile)
+		tlsConfig, err := cf_http.NewTLSConfig(*certFile, *keyFile, *caFile)
 		if err != nil {
 			logger.Fatal("tls-configuration-failed", err)
 		}

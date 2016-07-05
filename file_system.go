@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 )
 
-//go:generate counterfeiter -o ../volmanfakes/fake_file_system.go . FileSystem
+//go:generate counterfeiter -o localdriverfakes/fake_file_system.go . FileSystem
 
 // Interface on file system calls in order to facilitate testing
 type FileSystem interface {

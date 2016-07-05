@@ -9,14 +9,16 @@ import (
 	"code.cloudfoundry.org/lager/lagertest"
 	"github.com/cloudfoundry-incubator/localdriver"
 	"github.com/cloudfoundry-incubator/voldriver"
-	"github.com/cloudfoundry-incubator/volman/volmanfakes"
+	"github.com/cloudfoundry-incubator/localdriver/localdriverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagertest"
 )
 
 var _ = Describe("Local Driver", func() {
 	var logger lager.Logger
-	var fakeFileSystem *volmanfakes.FakeFileSystem
+	var fakeFileSystem *localdriverfakes.FakeFileSystem
 	var localDriver *localdriver.LocalDriver
 	var mountDir string
 
@@ -25,7 +27,7 @@ var _ = Describe("Local Driver", func() {
 
 		mountDir = "/path/to/mount"
 
-		fakeFileSystem = &volmanfakes.FakeFileSystem{}
+		fakeFileSystem = &localdriverfakes.FakeFileSystem{}
 		localDriver = localdriver.NewLocalDriver(fakeFileSystem, mountDir)
 	})
 
@@ -404,7 +406,7 @@ func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeN
 	Expect(createResponse.Err).To(Equal(""))
 }
 
-func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFileSystem *volmanfakes.FakeFileSystem) {
+func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFileSystem *localdriverfakes.FakeFileSystem) {
 	fakeFileSystem.AbsReturns("/some/temp/dir", nil)
 	mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
 		Name: volumeName,

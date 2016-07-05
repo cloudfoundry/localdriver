@@ -7,8 +7,8 @@ import (
 
 	"strings"
 
-	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/voldriver"
+	"code.cloudfoundry.org/lager"
 )
 
 const RootDir = "_volumes/"
