@@ -304,7 +304,7 @@ var _ = Describe("Local Driver", func() {
 		})
 	})
 
-	FDescribe("Remove", func() {
+	Describe("Remove", func() {
 		const volumeName = "test-volume"
 
 		It("should fail if no volume name provided", func() {
