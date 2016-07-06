@@ -173,8 +173,10 @@ func (d *LocalDriver) Remove(logger lager.Logger, removeRequest voldriver.Remove
 		}
 	}
 
-	logger.Info("removing-volume-path", lager.Data{"mountpoint": vol.Mountpoint})
-	err := d.fileSystem.RemoveAll(vol.Mountpoint)
+	mountPath := d.mountPath(logger, vol.Name)
+
+	logger.Info("removing-volume-path", lager.Data{"mountpoint": mountPath})
+	err := d.fileSystem.RemoveAll(mountPath)
 	if err != nil {
 		logger.Error("failed-removing-mount-path", err)
 		return voldriver.ErrorResponse{Err: fmt.Sprintf("Failed removing mount path: %s", err)}
