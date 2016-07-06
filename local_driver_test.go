@@ -84,15 +84,15 @@ var _ = Describe("Local Driver", func() {
 					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
 				})
 
-				It("/VolumeDriver.Get returns no mountpoint", func() {
+				It("After unmounting /VolumeDriver.Get returns no mountpoint", func() {
 					unmountSuccessful(logger, localDriver, volumeName)
 					getResponse := getSuccessful(logger, localDriver, volumeName)
 					Expect(getResponse.Volume.Mountpoint).To(Equal(""))
 				})
 
-				It("/VolumeDriver.Unmount removes mountpath from OS", func() {
+				It("/VolumeDriver.Unmount doesn't remove mountpath from OS", func() {
 					unmountSuccessful(logger, localDriver, volumeName)
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(0))
 				})
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
@@ -101,10 +101,13 @@ var _ = Describe("Local Driver", func() {
 						unmountSuccessful(logger, localDriver, volumeName)
 					})
 
-					It("should not remove the volume from the file system until unmount is called again", func() {
-						Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(0))
+					It("should not report empty mountpoint until unmount is called again", func() {
+						getResponse := getSuccessful(logger, localDriver, volumeName)
+						Expect(getResponse.Volume.Mountpoint).NotTo(Equal(""))
+
 						unmountSuccessful(logger, localDriver, volumeName)
-						Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+						getResponse = getSuccessful(logger, localDriver, volumeName)
+						Expect(getResponse.Volume.Mountpoint).To(Equal(""))
 					})
 				})
 				Context("when the mountpath is not found on the filesystem", func() {
@@ -139,27 +142,6 @@ var _ = Describe("Local Driver", func() {
 
 					It("returns an error", func() {
 						Expect(unmountResponse.Err).To(Equal("Error establishing whether volume exists"))
-					})
-
-					It("/VolumeDriver.Get still returns the mountpoint", func() {
-						getResponse := getSuccessful(logger, localDriver, volumeName)
-						Expect(getResponse.Volume.Mountpoint).NotTo(Equal(""))
-					})
-				})
-
-				Context("when removing the mountpath errors", func() {
-					var unmountResponse voldriver.ErrorResponse
-
-					BeforeEach(func() {
-						fakeFileSystem.RemoveAllReturns(errors.New("an error"))
-
-						unmountResponse = localDriver.Unmount(logger, voldriver.UnmountRequest{
-							Name: volumeName,
-						})
-					})
-
-					It("returns an error", func() {
-						Expect(unmountResponse.Err).To(Equal("Failed removing mount path: an error"))
 					})
 
 					It("/VolumeDriver.Get still returns the mountpoint", func() {
@@ -322,7 +304,7 @@ var _ = Describe("Local Driver", func() {
 		})
 	})
 
-	Describe("Remove", func() {
+	FDescribe("Remove", func() {
 		const volumeName = "test-volume"
 
 		It("should fail if no volume name provided", func() {
@@ -344,21 +326,26 @@ var _ = Describe("Local Driver", func() {
 				createSuccessful(logger, localDriver, volumeName)
 			})
 
-			It("destroys volume", func() {
+			It("/VolumePlugin.Remove destroys volume", func() {
 				removeResponse := localDriver.Remove(logger, voldriver.RemoveRequest{
 					Name: volumeName,
 				})
 				Expect(removeResponse.Err).To(Equal(""))
+				Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+
 				getUnsuccessful(logger, localDriver, volumeName)
 			})
+
 			Context("when volume has been mounted", func() {
-				It("unmounts and destroys volume", func() {
+				It("/VolumePlugin.Remove unmounts and destroys volume", func() {
 					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
 
 					removeResponse := localDriver.Remove(logger, voldriver.RemoveRequest{
 						Name: volumeName,
 					})
 					Expect(removeResponse.Err).To(Equal(""))
+					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+
 					getUnsuccessful(logger, localDriver, volumeName)
 				})
 			})
