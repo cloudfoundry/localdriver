@@ -9,14 +9,21 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/voldriver"
+	"golang.org/x/crypto/bcrypt"
 	"path/filepath"
 )
 
 const VolumesRootDir = "_volumes"
 const MountsRootDir = "_mounts"
 
-type LocalDriver struct { // see voldriver.resources.go
-	volumes       map[string]*voldriver.VolumeInfo
+type LocalVolumeInfo struct {
+	passcode []byte
+
+	voldriver.VolumeInfo // see voldriver.resources.go
+}
+
+type LocalDriver struct {
+	volumes       map[string]*LocalVolumeInfo
 	fileSystem    FileSystem
 	invoker       Invoker
 	mountPathRoot string
@@ -24,7 +31,7 @@ type LocalDriver struct { // see voldriver.resources.go
 
 func NewLocalDriver(fileSystem FileSystem, invoker Invoker, mountPathRoot string) *LocalDriver {
 	return &LocalDriver{
-		volumes:       map[string]*voldriver.VolumeInfo{},
+		volumes:       map[string]*LocalVolumeInfo{},
 		fileSystem:    fileSystem,
 		invoker:       invoker,
 		mountPathRoot: mountPathRoot,
@@ -51,10 +58,23 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_id' field in 'Opts'"}
 	}
 
-	var existingVolume *voldriver.VolumeInfo
+	var existingVolume *LocalVolumeInfo
 	if existingVolume, ok = d.volumes[createRequest.Name]; !ok {
 		logger.Info("creating-volume", lager.Data{"volume_name": createRequest.Name, "volume_id": id.(string)})
-		d.volumes[createRequest.Name] = &voldriver.VolumeInfo{Name: id.(string)}
+
+		volInfo := LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: id.(string)}}
+		if passcode, ok := createRequest.Opts["passcode"]; ok {
+			if passcodeAsString, ok := passcode.(string); !ok {
+				return voldriver.ErrorResponse{Err: "Opts.passcode must be a string value"}
+			} else {
+				passhash, err := bcrypt.GenerateFromPassword([]byte(passcodeAsString), bcrypt.DefaultCost)
+				if err != nil {
+					return voldriver.ErrorResponse{Err: "System Failure"}
+				}
+				volInfo.passcode = passhash
+			}
+		}
+		d.volumes[createRequest.Name] = &volInfo
 
 		createDir := d.volumePath(logger, id.(string))
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
@@ -63,7 +83,6 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 		return voldriver.ErrorResponse{}
 	}
 
-	// If a volume with the given name already exists, no-op unless the opts are different
 	if existingVolume.Name != id {
 		logger.Info("duplicate-volume", lager.Data{"volume_name": createRequest.Name})
 		return voldriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' already exists with a different volume ID", createRequest.Name)}
@@ -75,7 +94,7 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 func (d *LocalDriver) List(logger lager.Logger) voldriver.ListResponse {
 	listResponse := voldriver.ListResponse{}
 	for _, volume := range d.volumes {
-		listResponse.Volumes = append(listResponse.Volumes, *volume)
+		listResponse.Volumes = append(listResponse.Volumes, volume.VolumeInfo)
 	}
 	listResponse.Err = ""
 	return listResponse
@@ -88,10 +107,27 @@ func (d *LocalDriver) Mount(logger lager.Logger, mountRequest voldriver.MountReq
 		return voldriver.MountResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
-	var vol *voldriver.VolumeInfo
+	var vol *LocalVolumeInfo
 	var ok bool
 	if vol, ok = d.volumes[mountRequest.Name]; !ok {
 		return voldriver.MountResponse{Err: fmt.Sprintf("Volume '%s' must be created before being mounted", mountRequest.Name)}
+	}
+
+	if vol.passcode != nil {
+		//var hash []bytes
+		if passcode, ok := mountRequest.Opts["passcode"]; !ok {
+			logger.Info("missing-passcode", lager.Data{"volume_name": mountRequest.Name})
+			return voldriver.MountResponse{Err: "Volume " + mountRequest.Name + " requires a passcode"}
+		} else {
+			if passcodeAsString, ok := passcode.(string); !ok {
+				return voldriver.MountResponse{Err: "Opts.passcode must be a string value"}
+			} else {
+				if bcrypt.CompareHashAndPassword(vol.passcode, []byte(passcodeAsString)) != nil {
+					return voldriver.MountResponse{Err: "Volume " + mountRequest.Name + " access denied"}
+				}
+			}
+
+		}
 	}
 
 	volumePath := d.volumePath(logger, vol.Name)
@@ -170,7 +206,7 @@ func (d *LocalDriver) Remove(logger lager.Logger, removeRequest voldriver.Remove
 	}
 
 	var response voldriver.ErrorResponse
-	var vol *voldriver.VolumeInfo
+	var vol *LocalVolumeInfo
 	var exists bool
 	if vol, exists = d.volumes[removeRequest.Name]; !exists {
 		logger.Error("failed-volume-removal", fmt.Errorf(fmt.Sprintf("Volume %s not found", removeRequest.Name)))

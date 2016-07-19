@@ -45,8 +45,8 @@ var _ = Describe("Local Driver", func() {
 			const volumeName = "test-volume-name"
 
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, volumeName)
-				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
+				createSuccessful(logger, localDriver, volumeName, "")
+				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
 			})
 
 			AfterEach(func() {
@@ -69,6 +69,72 @@ var _ = Describe("Local Driver", func() {
 			})
 		})
 
+		Context("when the volume has been created with a passcode", func() {
+			const volumeName = "test-volume-name"
+			const passcode = "aPassc0de"
+
+			BeforeEach(func() {
+				createSuccessful(logger, localDriver, volumeName, passcode)
+			})
+
+			AfterEach(func() {
+				removeSuccessful(logger, localDriver, volumeName)
+			})
+
+			Context("when mounting with the right passcode", func() {
+				BeforeEach(func() {
+					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, passcode)
+				})
+				AfterEach(func() {
+					unmountSuccessful(logger, localDriver, volumeName)
+				})
+
+				It("should mount the volume on the local filesystem", func() {
+					Expect(fakeFileSystem.AbsCallCount()).To(Equal(3))
+					Expect(fakeFileSystem.MkdirAllCallCount()).To(Equal(3))
+					Expect(fakeInvoker.InvokeCallCount()).To(Equal(1))
+					_, cmd, args := fakeInvoker.InvokeArgsForCall(0)
+					Expect(cmd).To(Equal("ln"))
+					Expect(args).To(Equal([]string{"-s", "/path/to/mount/_volumes/test-volume-id", "/path/to/mount/_mounts/test-volume-id"}))
+				})
+
+				It("returns the mount point on a /VolumeDriver.Get response", func() {
+					getResponse := getSuccessful(logger, localDriver, volumeName)
+					Expect(getResponse.Volume.Mountpoint).To(Equal("/path/to/mount/_mounts/test-volume-id"))
+				})
+			})
+
+			Context("when mounting with the wrong passcode", func() {
+				It("returns an error", func() {
+					mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
+						Name: volumeName,
+						Opts: map[string]interface{}{"passcode":"wrong"},
+					})
+					Expect(mountResponse.Err).To(Equal("Volume " + volumeName + " access denied"))
+				})
+			})
+
+			Context("when mounting with the wrong passcode type", func() {
+				It("returns an error", func() {
+					mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
+						Name: volumeName,
+						Opts: map[string]interface{}{"passcode":nil},
+					})
+					Expect(mountResponse.Err).To(Equal("Opts.passcode must be a string value"))
+				})
+			})
+
+			Context("when mounting with no passcode", func() {
+				It("returns an error", func() {
+					mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
+						Name: volumeName,
+					})
+					Expect(mountResponse.Err).To(Equal("Volume " + volumeName + " requires a passcode"))
+				})
+			})
+
+		})
+
 		Context("when the volume has not been created", func() {
 			It("returns an error", func() {
 				mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
@@ -84,12 +150,12 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when a volume has been created", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, volumeName)
+				createSuccessful(logger, localDriver, volumeName, "")
 			})
 
 			Context("when a volume has been mounted", func() {
 				BeforeEach(func() {
-					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
+					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
 				})
 
 				It("After unmounting /VolumeDriver.Get returns no mountpoint", func() {
@@ -105,7 +171,7 @@ var _ = Describe("Local Driver", func() {
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
 					BeforeEach(func() {
-						mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
+						mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
 						unmountSuccessful(logger, localDriver, volumeName)
 					})
 
@@ -195,14 +261,28 @@ var _ = Describe("Local Driver", func() {
 			})
 		})
 
+		Context("when a passcode is wrong type", func() {
+			It("returns an error", func() {
+				createResponse := localDriver.Create(logger, voldriver.CreateRequest{
+					Name: "volume",
+					Opts: map[string]interface{}{
+						"volume_id": "something_different_than_test",
+						"passcode" : nil,
+					},
+				})
+
+				Expect(createResponse.Err).To(Equal("Opts.passcode must be a string value"))
+			})
+		})
+
 		Context("when a second create is called with the same volume ID", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, "volume")
+				createSuccessful(logger, localDriver, "volume", "")
 			})
 
 			Context("with the same opts", func() {
 				It("does nothing", func() {
-					createSuccessful(logger, localDriver, "volume")
+					createSuccessful(logger, localDriver, "volume", "")
 				})
 			})
 
@@ -225,7 +305,7 @@ var _ = Describe("Local Driver", func() {
 		Context("when the volume has been created", func() {
 			It("returns the volume name", func() {
 				volumeName := "test-volume"
-				createSuccessful(logger, localDriver, volumeName)
+				createSuccessful(logger, localDriver, volumeName, "")
 				getSuccessful(logger, localDriver, volumeName)
 			})
 		})
@@ -245,8 +325,8 @@ var _ = Describe("Local Driver", func() {
 			)
 			BeforeEach(func() {
 				volumeName = "my-volume"
-				createSuccessful(logger, localDriver, volumeName)
-				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
+				createSuccessful(logger, localDriver, volumeName, "")
+				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
 			})
 
 			It("returns the mount point on a /VolumeDriver.Path", func() {
@@ -274,7 +354,7 @@ var _ = Describe("Local Driver", func() {
 			)
 			BeforeEach(func() {
 				volumeName = "my-volume"
-				createSuccessful(logger, localDriver, volumeName)
+				createSuccessful(logger, localDriver, volumeName, "")
 			})
 
 			It("returns an error on /VolumeDriver.Path", func() {
@@ -292,7 +372,7 @@ var _ = Describe("Local Driver", func() {
 			var volumeName string
 			BeforeEach(func() {
 				volumeName = "test-volume-id"
-				createSuccessful(logger, localDriver, volumeName)
+				createSuccessful(logger, localDriver, volumeName, "")
 			})
 
 			It("returns the list of volumes", func() {
@@ -331,7 +411,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when the volume has been created", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, volumeName)
+				createSuccessful(logger, localDriver, volumeName, "")
 			})
 
 			It("/VolumePlugin.Remove destroys volume", func() {
@@ -346,7 +426,7 @@ var _ = Describe("Local Driver", func() {
 
 			Context("when volume has been mounted", func() {
 				It("/VolumePlugin.Remove unmounts and destroys volume", func() {
-					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem)
+					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
 
 					removeResponse := localDriver.Remove(logger, voldriver.RemoveRequest{
 						Name: volumeName,
@@ -389,20 +469,30 @@ func getSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName
 	return getResponse
 }
 
-func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string) {
+func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, passcode string) {
+	opts := map[string]interface{}{
+		"volume_id": "test-volume-id",
+	}
+	if passcode != "" {
+		opts["passcode"] = passcode
+	}
 	createResponse := localDriver.Create(logger, voldriver.CreateRequest{
 		Name: volumeName,
-		Opts: map[string]interface{}{
-			"volume_id": "test-volume-id",
-		},
+		Opts: opts,
 	})
 	Expect(createResponse.Err).To(Equal(""))
 }
 
-func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFileSystem *localdriverfakes.FakeFileSystem) {
+func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFileSystem *localdriverfakes.FakeFileSystem, passcode string) {
 	fakeFileSystem.AbsReturns("/path/to/mount/", nil)
+	opts := map[string]interface{}{
+	}
+	if passcode != "" {
+		opts["passcode"] = passcode
+	}
 	mountResponse := localDriver.Mount(logger, voldriver.MountRequest{
 		Name: volumeName,
+		Opts: opts,
 	})
 	Expect(mountResponse.Err).To(Equal(""))
 	Expect(mountResponse.Mountpoint).To(Equal("/path/to/mount/_mounts/test-volume-id"))
