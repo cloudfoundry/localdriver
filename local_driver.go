@@ -25,15 +25,13 @@ type LocalVolumeInfo struct {
 type LocalDriver struct {
 	volumes       map[string]*LocalVolumeInfo
 	fileSystem    FileSystem
-	invoker       Invoker
 	mountPathRoot string
 }
 
-func NewLocalDriver(fileSystem FileSystem, invoker Invoker, mountPathRoot string) *LocalDriver {
+func NewLocalDriver(fileSystem FileSystem, mountPathRoot string) *LocalDriver {
 	return &LocalDriver{
 		volumes:       map[string]*LocalVolumeInfo{},
 		fileSystem:    fileSystem,
-		invoker:       invoker,
 		mountPathRoot: mountPathRoot,
 	}
 }
@@ -293,8 +291,7 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 
 func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) error {
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
-	args := []string{"-s", volumePath, mountPath}
-	return d.invoker.Invoke(logger, "ln", args)
+	return d.fileSystem.Symlink(volumePath, mountPath)
 }
 
 func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string) voldriver.ErrorResponse {
@@ -320,11 +317,10 @@ func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string
 		return voldriver.ErrorResponse{}
 	} else {
 		logger.Info("unmount-volume-folder", lager.Data{"mountpath": mountPath})
-		args := []string{mountPath}
-		err := d.invoker.Invoke(logger, "rm", args)
+		err := d.fileSystem.RemoveAll(mountPath)
 		if err != nil {
 			logger.Error("unmount-failed", err)
-			return voldriver.ErrorResponse{Err: fmt.Sprintf("Error mounting volume: %s", err.Error())}
+			return voldriver.ErrorResponse{Err: fmt.Sprintf("Error unmounting volume: %s", err.Error())}
 		}
 	}
 

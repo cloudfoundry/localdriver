@@ -141,7 +141,6 @@ func processRunnerFor(servers grouper.Members) ifrit.Runner {
 
 func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool) ifrit.Runner {
 	fileSystem := localdriver.NewRealFileSystem()
-	invoker := localdriver.NewRealInvoker()
 	advertisedUrl := "http://" + atAddress
 	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "localdriver", "address": advertisedUrl})
 	if jsonSpec {
@@ -168,7 +167,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 		exitOnFailure(logger, err)
 	}
 
-	client := localdriver.NewLocalDriver(&fileSystem, invoker, mountDir)
+	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 
@@ -188,8 +187,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 
 func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
 	fileSystem := localdriver.NewRealFileSystem()
-	invoker := localdriver.NewRealInvoker()
-	client := localdriver.NewLocalDriver(&fileSystem, invoker, mountDir)
+	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 	return http_server.NewUnixServer(atAddress, handler)

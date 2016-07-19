@@ -17,7 +17,6 @@ import (
 var _ = Describe("Local Driver", func() {
 	var logger lager.Logger
 	var fakeFileSystem *localdriverfakes.FakeFileSystem
-	var fakeInvoker *localdriverfakes.FakeInvoker
 	var localDriver *localdriver.LocalDriver
 	var mountDir string
 
@@ -27,8 +26,7 @@ var _ = Describe("Local Driver", func() {
 		mountDir = "/path/to/mount"
 
 		fakeFileSystem = &localdriverfakes.FakeFileSystem{}
-		fakeInvoker = &localdriverfakes.FakeInvoker{}
-		localDriver = localdriver.NewLocalDriver(fakeFileSystem, fakeInvoker, mountDir)
+		localDriver = localdriver.NewLocalDriver(fakeFileSystem, mountDir)
 	})
 
 	Describe("#Activate", func() {
@@ -57,10 +55,10 @@ var _ = Describe("Local Driver", func() {
 			It("should mount the volume on the local filesystem", func() {
 				Expect(fakeFileSystem.AbsCallCount()).To(Equal(3))
 				Expect(fakeFileSystem.MkdirAllCallCount()).To(Equal(3))
-				Expect(fakeInvoker.InvokeCallCount()).To(Equal(1))
-				_, cmd, args := fakeInvoker.InvokeArgsForCall(0)
-				Expect(cmd).To(Equal("ln"))
-				Expect(args).To(Equal([]string{"-s", "/path/to/mount/_volumes/test-volume-id", "/path/to/mount/_mounts/test-volume-id"}))
+				Expect(fakeFileSystem.SymlinkCallCount()).To(Equal(1))
+				from, to := fakeFileSystem.SymlinkArgsForCall(0)
+				Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
+				Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 			})
 
 			It("returns the mount point on a /VolumeDriver.Get response", func() {
@@ -92,10 +90,10 @@ var _ = Describe("Local Driver", func() {
 				It("should mount the volume on the local filesystem", func() {
 					Expect(fakeFileSystem.AbsCallCount()).To(Equal(3))
 					Expect(fakeFileSystem.MkdirAllCallCount()).To(Equal(3))
-					Expect(fakeInvoker.InvokeCallCount()).To(Equal(1))
-					_, cmd, args := fakeInvoker.InvokeArgsForCall(0)
-					Expect(cmd).To(Equal("ln"))
-					Expect(args).To(Equal([]string{"-s", "/path/to/mount/_volumes/test-volume-id", "/path/to/mount/_mounts/test-volume-id"}))
+					Expect(fakeFileSystem.SymlinkCallCount()).To(Equal(1))
+					from, to := fakeFileSystem.SymlinkArgsForCall(0)
+					Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
+					Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 				})
 
 				It("returns the mount point on a /VolumeDriver.Get response", func() {
@@ -166,7 +164,9 @@ var _ = Describe("Local Driver", func() {
 
 				It("/VolumeDriver.Unmount doesn't remove mountpath from OS", func() {
 					unmountSuccessful(logger, localDriver, volumeName)
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(0))
+					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+					removed := fakeFileSystem.RemoveAllArgsForCall(0)
+					Expect(removed).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 				})
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
@@ -432,7 +432,7 @@ var _ = Describe("Local Driver", func() {
 						Name: volumeName,
 					})
 					Expect(removeResponse.Err).To(Equal(""))
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(2))
 
 					getUnsuccessful(logger, localDriver, volumeName)
 				})

@@ -13,6 +13,7 @@ type FileSystem interface {
 	TempDir() string
 	Stat(string) (os.FileInfo, error)
 	RemoveAll(string) error
+	Symlink(oldname, newname string) error
 
 	// filepath package
 	Abs(path string) (string, error)
@@ -48,4 +49,8 @@ func (f *realFileSystem) RemoveAll(path string) error {
 
 func (f *realFileSystem) Abs(path string) (string, error) {
 	return filepath.Abs(path)
+}
+
+func (f *realFileSystem) Symlink(oldname, newname string) error {
+	return os.Symlink(oldname, newname)
 }
