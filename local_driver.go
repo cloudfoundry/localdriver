@@ -133,18 +133,19 @@ func (d *LocalDriver) Mount(logger lager.Logger, mountRequest voldriver.MountReq
 	mountPath := d.mountPath(logger, vol.Name)
 	logger.Info("mounting-volume", lager.Data{"id": vol.Name, "mountpoint": mountPath})
 
-	err := d.mount(logger, volumePath, mountPath)
-	if err != nil {
-		logger.Error("mount-volume-failed", err)
-		return voldriver.MountResponse{Err: fmt.Sprintf("Error mounting volume: %s", err.Error())}
+	if vol.MountCount < 1 {
+		err := d.mount(logger, volumePath, mountPath)
+		if err != nil {
+			logger.Error("mount-volume-failed", err)
+			return voldriver.MountResponse{Err: fmt.Sprintf("Error mounting volume: %s", err.Error())}
+		}
+		vol.Mountpoint = mountPath
 	}
-
-	vol.Mountpoint = mountPath
 
 	vol.MountCount++
 	logger.Info("volume-mounted", lager.Data{"name": vol.Name, "count": vol.MountCount})
 
-	mountResponse := voldriver.MountResponse{Mountpoint: mountPath}
+	mountResponse := voldriver.MountResponse{Mountpoint: vol.Mountpoint}
 	return mountResponse
 }
 
