@@ -165,8 +165,8 @@ var _ = Describe("Local Driver", func() {
 
 				It("/VolumeDriver.Unmount doesn't remove mountpath from OS", func() {
 					unmountSuccessful(logger, localDriver, volumeName)
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
-					removed := fakeFileSystem.RemoveAllArgsForCall(0)
+					Expect(fakeFileSystem.RemoveCallCount()).To(Equal(1))
+					removed := fakeFileSystem.RemoveArgsForCall(0)
 					Expect(removed).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 				})
 
@@ -433,7 +433,8 @@ var _ = Describe("Local Driver", func() {
 						Name: volumeName,
 					})
 					Expect(removeResponse.Err).To(Equal(""))
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(2))
+					Expect(fakeFileSystem.RemoveCallCount()).To(Equal(1))
+					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
 
 					getUnsuccessful(logger, localDriver, volumeName)
 				})

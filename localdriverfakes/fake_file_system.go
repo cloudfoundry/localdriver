@@ -41,6 +41,14 @@ type FakeFileSystem struct {
 	removeAllReturns struct {
 		result1 error
 	}
+	RemoveStub        func(string) error
+	removeMutex       sync.RWMutex
+	removeArgsForCall []struct {
+		arg1 string
+	}
+	removeReturns struct {
+		result1 error
+	}
 	SymlinkStub        func(oldname, newname string) error
 	symlinkMutex       sync.RWMutex
 	symlinkArgsForCall []struct {
@@ -179,6 +187,38 @@ func (fake *FakeFileSystem) RemoveAllArgsForCall(i int) string {
 func (fake *FakeFileSystem) RemoveAllReturns(result1 error) {
 	fake.RemoveAllStub = nil
 	fake.removeAllReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *FakeFileSystem) Remove(arg1 string) error {
+	fake.removeMutex.Lock()
+	fake.removeArgsForCall = append(fake.removeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	fake.removeMutex.Unlock()
+	if fake.RemoveStub != nil {
+		return fake.RemoveStub(arg1)
+	} else {
+		return fake.removeReturns.result1
+	}
+}
+
+func (fake *FakeFileSystem) RemoveCallCount() int {
+	fake.removeMutex.RLock()
+	defer fake.removeMutex.RUnlock()
+	return len(fake.removeArgsForCall)
+}
+
+func (fake *FakeFileSystem) RemoveArgsForCall(i int) string {
+	fake.removeMutex.RLock()
+	defer fake.removeMutex.RUnlock()
+	return fake.removeArgsForCall[i].arg1
+}
+
+func (fake *FakeFileSystem) RemoveReturns(result1 error) {
+	fake.RemoveStub = nil
+	fake.removeReturns = struct {
 		result1 error
 	}{result1}
 }

@@ -319,7 +319,7 @@ func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string
 		return voldriver.ErrorResponse{}
 	} else {
 		logger.Info("unmount-volume-folder", lager.Data{"mountpath": mountPath})
-		err := d.fileSystem.RemoveAll(mountPath)
+		err := d.fileSystem.Remove(mountPath)
 		if err != nil {
 			logger.Error("unmount-failed", err)
 			return voldriver.ErrorResponse{Err: fmt.Sprintf("Error unmounting volume: %s", err.Error())}

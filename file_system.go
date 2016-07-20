@@ -3,6 +3,7 @@ package localdriver
 import (
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 //go:generate counterfeiter -o localdriverfakes/fake_file_system.go . FileSystem
@@ -13,6 +14,7 @@ type FileSystem interface {
 	TempDir() string
 	Stat(string) (os.FileInfo, error)
 	RemoveAll(string) error
+	Remove(string) error
 	Symlink(oldname, newname string) error
 
 	// filepath package
@@ -26,13 +28,10 @@ func NewRealFileSystem() realFileSystem {
 }
 
 func (f *realFileSystem) MkdirAll(path string, perm os.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return err
-	}
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
 
-	return os.Chmod(path, perm)
-
+	return os.MkdirAll(path, perm)
 }
 
 func (f *realFileSystem) TempDir() string {
@@ -47,10 +46,22 @@ func (f *realFileSystem) RemoveAll(path string) error {
 	return os.RemoveAll(path)
 }
 
+func (f *realFileSystem) Remove(path string) error {
+	return os.Remove(path)
+}
+
 func (f *realFileSystem) Abs(path string) (string, error) {
 	return filepath.Abs(path)
 }
 
 func (f *realFileSystem) Symlink(oldname, newname string) error {
-	return os.Symlink(oldname, newname)
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
+
+	err := os.Symlink(oldname, newname)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(newname, os.ModePerm)
 }
