@@ -7,10 +7,11 @@ import (
 
 	"strings"
 
+	"path/filepath"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/cloudfoundry-incubator/voldriver"
 	"golang.org/x/crypto/bcrypt"
-	"path/filepath"
 )
 
 const VolumesRootDir = "_volumes"
@@ -76,7 +77,7 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 
 		createDir := d.volumePath(logger, id.(string))
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
-		os.MkdirAll(createDir, os.ModePerm)
+		d.fileSystem.MkdirAll(createDir, os.ModePerm)
 
 		return voldriver.ErrorResponse{}
 	}
