@@ -252,6 +252,12 @@ func (d *LocalDriver) get(logger lager.Logger, volumeName string) (string, error
 	return "", errors.New("Volume not found")
 }
 
+func (d *LocalDriver) Capabilities(logger lager.Logger) voldriver.CapabilitiesResponse {
+	return voldriver.CapabilitiesResponse{
+		Capabilities: voldriver.CapabilityInfo{Scope: "local"},
+	}
+}
+
 func (d *LocalDriver) exists(path string) (bool, error) {
 	_, err := d.fileSystem.Stat(path)
 	if err == nil {
