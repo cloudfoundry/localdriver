@@ -11,9 +11,9 @@ import (
 	cf_debug_server "code.cloudfoundry.org/debugserver"
 	"code.cloudfoundry.org/lager"
 
+	"code.cloudfoundry.org/voldriver"
+	"code.cloudfoundry.org/voldriver/driverhttp"
 	"github.com/cloudfoundry-incubator/localdriver"
-	"github.com/cloudfoundry-incubator/voldriver"
-	"github.com/cloudfoundry-incubator/voldriver/driverhttp"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"

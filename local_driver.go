@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/cloudfoundry-incubator/voldriver"
+	"code.cloudfoundry.org/voldriver"
 	"golang.org/x/crypto/bcrypt"
 )
 
