@@ -13,7 +13,7 @@ import (
 
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/voldriver/driverhttp"
-	"github.com/cloudfoundry-incubator/localdriver"
+	"code.cloudfoundry.org/localdriver"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"

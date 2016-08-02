@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cloudfoundry-incubator/localdriver"
+	"code.cloudfoundry.org/localdriver"
 )
 
 type FakeFileSystem struct {

@@ -9,8 +9,8 @@ import (
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/voldriver"
-	"github.com/cloudfoundry-incubator/localdriver"
-	"github.com/cloudfoundry-incubator/localdriver/localdriverfakes"
+	"code.cloudfoundry.org/localdriver"
+	"code.cloudfoundry.org/localdriver/localdriverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
