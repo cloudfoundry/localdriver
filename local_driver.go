@@ -12,6 +12,8 @@ import (
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/voldriver"
 	"golang.org/x/crypto/bcrypt"
+	"code.cloudfoundry.org/goshims/os"
+	"code.cloudfoundry.org/goshims/filepath"
 )
 
 const VolumesRootDir = "_volumes"
@@ -25,14 +27,16 @@ type LocalVolumeInfo struct {
 
 type LocalDriver struct {
 	volumes       map[string]*LocalVolumeInfo
-	fileSystem    FileSystem
+	os    osshim.Os
+	filepath filepathshim.Filepath
 	mountPathRoot string
 }
 
-func NewLocalDriver(fileSystem FileSystem, mountPathRoot string) *LocalDriver {
+func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string) *LocalDriver {
 	return &LocalDriver{
 		volumes:       map[string]*LocalVolumeInfo{},
-		fileSystem:    fileSystem,
+		os:    os,
+		filepath: filepath,
 		mountPathRoot: mountPathRoot,
 	}
 }
@@ -77,7 +81,7 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 
 		createDir := d.volumePath(logger, id.(string))
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
-		d.fileSystem.MkdirAll(createDir, os.ModePerm)
+		d.os.MkdirAll(createDir, os.ModePerm)
 
 		return voldriver.ErrorResponse{}
 	}
@@ -223,7 +227,7 @@ func (d *LocalDriver) Remove(logger lager.Logger, removeRequest voldriver.Remove
 	volumePath := d.volumePath(logger, vol.Name)
 
 	logger.Info("remove-volume-folder", lager.Data{"volume": volumePath})
-	err := d.fileSystem.RemoveAll(volumePath)
+	err := d.os.RemoveAll(volumePath)
 	if err != nil {
 		logger.Error("failed-removing-volume", err)
 		return voldriver.ErrorResponse{Err: fmt.Sprintf("Failed removing mount path: %s", err)}
@@ -259,7 +263,7 @@ func (d *LocalDriver) Capabilities(logger lager.Logger) voldriver.CapabilitiesRe
 }
 
 func (d *LocalDriver) exists(path string) (bool, error) {
-	_, err := d.fileSystem.Stat(path)
+	_, err := d.os.Stat(path)
 	if err == nil {
 		return true, nil
 	}
@@ -270,7 +274,7 @@ func (d *LocalDriver) exists(path string) (bool, error) {
 }
 
 func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
-	dir, err := d.fileSystem.Abs(d.mountPathRoot)
+	dir, err := d.filepath.Abs(d.mountPathRoot)
 	if err != nil {
 		logger.Fatal("abs-failed", err)
 	}
@@ -280,26 +284,26 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 	}
 
 	mountsPathRoot := fmt.Sprintf("%s%s", dir, MountsRootDir)
-	d.fileSystem.MkdirAll(mountsPathRoot, os.ModePerm)
+	d.os.MkdirAll(mountsPathRoot, os.ModePerm)
 
 	return fmt.Sprintf("%s/%s", mountsPathRoot, volumeId)
 }
 
 func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
-	dir, err := d.fileSystem.Abs(d.mountPathRoot)
+	dir, err := d.filepath.Abs(d.mountPathRoot)
 	if err != nil {
 		logger.Fatal("abs-failed", err)
 	}
 
 	volumesPathRoot := filepath.Join(dir, VolumesRootDir)
-	d.fileSystem.MkdirAll(volumesPathRoot, os.ModePerm)
+	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
 
 	return filepath.Join(volumesPathRoot, volumeId)
 }
 
 func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) error {
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
-	return d.fileSystem.Symlink(volumePath, mountPath)
+	return d.os.Symlink(volumePath, mountPath)
 }
 
 func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string) voldriver.ErrorResponse {
@@ -325,7 +329,7 @@ func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string
 		return voldriver.ErrorResponse{}
 	} else {
 		logger.Info("unmount-volume-folder", lager.Data{"mountpath": mountPath})
-		err := d.fileSystem.Remove(mountPath)
+		err := d.os.Remove(mountPath)
 		if err != nil {
 			logger.Error("unmount-failed", err)
 			return voldriver.ErrorResponse{Err: fmt.Sprintf("Error unmounting volume: %s", err.Error())}

@@ -10,14 +10,17 @@ import (
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/localdriver"
-	"code.cloudfoundry.org/localdriver/localdriverfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"code.cloudfoundry.org/goshims/os"
+	"code.cloudfoundry.org/goshims/os/os_fake"
+	"code.cloudfoundry.org/goshims/filepath/filepath_fake"
 )
 
 var _ = Describe("Local Driver", func() {
 	var logger lager.Logger
-	var fakeFileSystem *localdriverfakes.FakeFileSystem
+	var fakeOs *os_fake.FakeOs
+	var fakeFilepath *filepath_fake.FakeFilepath
 	var localDriver *localdriver.LocalDriver
 	var mountDir string
 
@@ -26,8 +29,9 @@ var _ = Describe("Local Driver", func() {
 
 		mountDir = "/path/to/mount"
 
-		fakeFileSystem = &localdriverfakes.FakeFileSystem{}
-		localDriver = localdriver.NewLocalDriver(fakeFileSystem, mountDir)
+		fakeOs = &os_fake.FakeOs{}
+		fakeFilepath = &filepath_fake.FakeFilepath{}
+		localDriver = localdriver.NewLocalDriver(fakeOs, fakeFilepath, mountDir)
 	})
 
 	Describe("#Activate", func() {
@@ -44,8 +48,8 @@ var _ = Describe("Local Driver", func() {
 			const volumeName = "test-volume-name"
 
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
-				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
+				mountSuccessful(logger, localDriver, volumeName, fakeFilepath, "")
 			})
 
 			AfterEach(func() {
@@ -54,10 +58,10 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			It("should mount the volume on the local filesystem", func() {
-				Expect(fakeFileSystem.AbsCallCount()).To(Equal(3))
-				Expect(fakeFileSystem.MkdirAllCallCount()).To(Equal(4))
-				Expect(fakeFileSystem.SymlinkCallCount()).To(Equal(1))
-				from, to := fakeFileSystem.SymlinkArgsForCall(0)
+				Expect(fakeFilepath.AbsCallCount()).To(Equal(3))
+				Expect(fakeOs.MkdirAllCallCount()).To(Equal(4))
+				Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+				from, to := fakeOs.SymlinkArgsForCall(0)
 				Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
 				Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 			})
@@ -73,7 +77,7 @@ var _ = Describe("Local Driver", func() {
 			const passcode = "aPassc0de"
 
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, passcode)
+				createSuccessful(logger, localDriver, fakeOs, volumeName, passcode)
 			})
 
 			AfterEach(func() {
@@ -82,17 +86,17 @@ var _ = Describe("Local Driver", func() {
 
 			Context("when mounting with the right passcode", func() {
 				BeforeEach(func() {
-					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, passcode)
+					mountSuccessful(logger, localDriver, volumeName, fakeFilepath, passcode)
 				})
 				AfterEach(func() {
 					unmountSuccessful(logger, localDriver, volumeName)
 				})
 
 				It("should mount the volume on the local filesystem", func() {
-					Expect(fakeFileSystem.AbsCallCount()).To(Equal(3))
-					Expect(fakeFileSystem.MkdirAllCallCount()).To(Equal(4))
-					Expect(fakeFileSystem.SymlinkCallCount()).To(Equal(1))
-					from, to := fakeFileSystem.SymlinkArgsForCall(0)
+					Expect(fakeFilepath.AbsCallCount()).To(Equal(3))
+					Expect(fakeOs.MkdirAllCallCount()).To(Equal(4))
+					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+					from, to := fakeOs.SymlinkArgsForCall(0)
 					Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
 					Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 				})
@@ -149,12 +153,12 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when a volume has been created", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
 			})
 
 			Context("when a volume has been mounted", func() {
 				BeforeEach(func() {
-					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
+					mountSuccessful(logger, localDriver, volumeName, fakeFilepath, "")
 				})
 
 				It("After unmounting /VolumeDriver.Get returns no mountpoint", func() {
@@ -165,14 +169,14 @@ var _ = Describe("Local Driver", func() {
 
 				It("/VolumeDriver.Unmount doesn't remove mountpath from OS", func() {
 					unmountSuccessful(logger, localDriver, volumeName)
-					Expect(fakeFileSystem.RemoveCallCount()).To(Equal(1))
-					removed := fakeFileSystem.RemoveArgsForCall(0)
+					Expect(fakeOs.RemoveCallCount()).To(Equal(1))
+					removed := fakeOs.RemoveArgsForCall(0)
 					Expect(removed).To(Equal("/path/to/mount/_mounts/test-volume-id"))
 				})
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
 					BeforeEach(func() {
-						mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
+						mountSuccessful(logger, localDriver, volumeName, fakeOs, "")
 						unmountSuccessful(logger, localDriver, volumeName)
 					})
 
@@ -189,7 +193,7 @@ var _ = Describe("Local Driver", func() {
 					var unmountResponse voldriver.ErrorResponse
 
 					BeforeEach(func() {
-						fakeFileSystem.StatReturns(nil, os.ErrNotExist)
+						fakeOs.StatReturns(nil, os.ErrNotExist)
 						unmountResponse = localDriver.Unmount(logger, voldriver.UnmountRequest{
 							Name: volumeName,
 						})
@@ -209,7 +213,7 @@ var _ = Describe("Local Driver", func() {
 					var unmountResponse voldriver.ErrorResponse
 
 					BeforeEach(func() {
-						fakeFileSystem.StatReturns(nil, errors.New("something weird"))
+						fakeOs.StatReturns(nil, errors.New("something weird"))
 						unmountResponse = localDriver.Unmount(logger, voldriver.UnmountRequest{
 							Name: volumeName,
 						})
@@ -278,12 +282,12 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when a second create is called with the same volume ID", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, fakeFileSystem, "volume", "")
+				createSuccessful(logger, localDriver, fakeOs, "volume", "")
 			})
 
 			Context("with the same opts", func() {
 				It("does nothing", func() {
-					createSuccessful(logger, localDriver, fakeFileSystem, "volume", "")
+					createSuccessful(logger, localDriver, fakeOs, "volume", "")
 				})
 			})
 
@@ -306,7 +310,7 @@ var _ = Describe("Local Driver", func() {
 		Context("when the volume has been created", func() {
 			It("returns the volume name", func() {
 				volumeName := "test-volume"
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
 				getSuccessful(logger, localDriver, volumeName)
 			})
 		})
@@ -326,8 +330,8 @@ var _ = Describe("Local Driver", func() {
 			)
 			BeforeEach(func() {
 				volumeName = "my-volume"
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
-				mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
+				mountSuccessful(logger, localDriver, volumeName, fakeFilepath, "")
 			})
 
 			It("returns the mount point on a /VolumeDriver.Path", func() {
@@ -355,7 +359,7 @@ var _ = Describe("Local Driver", func() {
 			)
 			BeforeEach(func() {
 				volumeName = "my-volume"
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
 			})
 
 			It("returns an error on /VolumeDriver.Path", func() {
@@ -373,7 +377,7 @@ var _ = Describe("Local Driver", func() {
 			var volumeName string
 			BeforeEach(func() {
 				volumeName = "test-volume-id"
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
 			})
 
 			It("returns the list of volumes", func() {
@@ -412,7 +416,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when the volume has been created", func() {
 			BeforeEach(func() {
-				createSuccessful(logger, localDriver, fakeFileSystem, volumeName, "")
+				createSuccessful(logger, localDriver, fakeOs, volumeName, "")
 			})
 
 			It("/VolumePlugin.Remove destroys volume", func() {
@@ -420,21 +424,21 @@ var _ = Describe("Local Driver", func() {
 					Name: volumeName,
 				})
 				Expect(removeResponse.Err).To(Equal(""))
-				Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+				Expect(fakeOs.RemoveAllCallCount()).To(Equal(1))
 
 				getUnsuccessful(logger, localDriver, volumeName)
 			})
 
 			Context("when volume has been mounted", func() {
 				It("/VolumePlugin.Remove unmounts and destroys volume", func() {
-					mountSuccessful(logger, localDriver, volumeName, fakeFileSystem, "")
+					mountSuccessful(logger, localDriver, volumeName, fakeFilepath, "")
 
 					removeResponse := localDriver.Remove(logger, voldriver.RemoveRequest{
 						Name: volumeName,
 					})
 					Expect(removeResponse.Err).To(Equal(""))
-					Expect(fakeFileSystem.RemoveCallCount()).To(Equal(1))
-					Expect(fakeFileSystem.RemoveAllCallCount()).To(Equal(1))
+					Expect(fakeOs.RemoveCallCount()).To(Equal(1))
+					Expect(fakeOs.RemoveAllCallCount()).To(Equal(1))
 
 					getUnsuccessful(logger, localDriver, volumeName)
 				})
@@ -471,7 +475,7 @@ func getSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName
 	return getResponse
 }
 
-func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, fakeFileSystem *localdriverfakes.FakeFileSystem, volumeName string, passcode string) {
+func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, fakeOs *os_fake.FakeOs, volumeName string, passcode string) {
 	opts := map[string]interface{}{
 		"volume_id": "test-volume-id",
 	}
@@ -484,15 +488,15 @@ func createSuccessful(logger lager.Logger, localDriver voldriver.Driver, fakeFil
 	})
 	Expect(createResponse.Err).To(Equal(""))
 
-	Expect(fakeFileSystem.MkdirAllCallCount()).Should(Equal(2))
+	Expect(fakeOs.MkdirAllCallCount()).Should(Equal(2))
 
-	volumeDir, fileMode := fakeFileSystem.MkdirAllArgsForCall(1)
+	volumeDir, fileMode := fakeOs.MkdirAllArgsForCall(1)
 	Expect(path.Base(volumeDir)).To(Equal("test-volume-id"))
 	Expect(fileMode).To(Equal(os.ModePerm))
 }
 
-func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFileSystem *localdriverfakes.FakeFileSystem, passcode string) {
-	fakeFileSystem.AbsReturns("/path/to/mount/", nil)
+func mountSuccessful(logger lager.Logger, localDriver voldriver.Driver, volumeName string, fakeFilepath *filepath_fake.FakeFilepath, passcode string) {
+	fakeFilepath.AbsReturns("/path/to/mount/", nil)
 	opts := map[string]interface{}{}
 	if passcode != "" {
 		opts["passcode"] = passcode

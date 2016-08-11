@@ -18,6 +18,8 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
+	"code.cloudfoundry.org/goshims/os"
+	"code.cloudfoundry.org/goshims/filepath"
 )
 
 var atAddress = flag.String(
@@ -140,7 +142,6 @@ func processRunnerFor(servers grouper.Members) ifrit.Runner {
 }
 
 func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool) ifrit.Runner {
-	fileSystem := localdriver.NewRealFileSystem()
 	advertisedUrl := "http://" + atAddress
 	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "localdriver", "address": advertisedUrl})
 	if jsonSpec {
@@ -167,7 +168,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 		exitOnFailure(logger, err)
 	}
 
-	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 
@@ -186,8 +187,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 }
 
 func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
-	fileSystem := localdriver.NewRealFileSystem()
-	client := localdriver.NewLocalDriver(&fileSystem, mountDir)
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 	return http_server.NewUnixServer(atAddress, handler)
