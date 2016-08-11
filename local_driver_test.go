@@ -12,7 +12,6 @@ import (
 	"code.cloudfoundry.org/localdriver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"code.cloudfoundry.org/goshims/os"
 	"code.cloudfoundry.org/goshims/os/os_fake"
 	"code.cloudfoundry.org/goshims/filepath/filepath_fake"
 )
@@ -176,7 +175,7 @@ var _ = Describe("Local Driver", func() {
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
 					BeforeEach(func() {
-						mountSuccessful(logger, localDriver, volumeName, fakeOs, "")
+						mountSuccessful(logger, localDriver, volumeName, fakeFilepath, "")
 						unmountSuccessful(logger, localDriver, volumeName)
 					})
 
