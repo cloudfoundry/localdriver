@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"code.cloudfoundry.org/goshims/os"
 	"code.cloudfoundry.org/goshims/filepath"
+	"syscall"
 )
 
 const VolumesRootDir = "_volumes"
@@ -81,6 +82,8 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 
 		createDir := d.volumePath(logger, id.(string))
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
+		orig := syscall.Umask(000)
+		defer syscall.Umask(orig)
 		d.os.MkdirAll(createDir, os.ModePerm)
 
 		return voldriver.ErrorResponse{}
@@ -284,6 +287,8 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 	}
 
 	mountsPathRoot := fmt.Sprintf("%s%s", dir, MountsRootDir)
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
 	d.os.MkdirAll(mountsPathRoot, os.ModePerm)
 
 	return fmt.Sprintf("%s/%s", mountsPathRoot, volumeId)
@@ -296,6 +301,8 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 	}
 
 	volumesPathRoot := filepath.Join(dir, VolumesRootDir)
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
 	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
 
 	return filepath.Join(volumesPathRoot, volumeId)
@@ -303,6 +310,8 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 
 func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) error {
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
+	orig := syscall.Umask(000)
+	defer syscall.Umask(orig)
 	return d.os.Symlink(volumePath, mountPath)
 }
 
