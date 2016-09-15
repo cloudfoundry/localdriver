@@ -51,22 +51,15 @@ func (d *LocalDriver) Activate(logger lager.Logger) voldriver.ActivateResponse {
 func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.CreateRequest) voldriver.ErrorResponse {
 	logger = logger.Session("create")
 	var ok bool
-	var id interface{}
-
 	if createRequest.Name == "" {
 		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
-	if id, ok = createRequest.Opts["volume_id"]; !ok {
-		logger.Info("missing-volume-id", lager.Data{"volume_name": createRequest.Name})
-		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_id' field in 'Opts'"}
-	}
-
 	var existingVolume *LocalVolumeInfo
 	if existingVolume, ok = d.volumes[createRequest.Name]; !ok {
-		logger.Info("creating-volume", lager.Data{"volume_name": createRequest.Name, "volume_id": id.(string)})
+		logger.Info("creating-volume", lager.Data{"volume_name": createRequest.Name, "volume_id": createRequest.Name})
 
-		volInfo := LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: id.(string)}}
+		volInfo := LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: createRequest.Name}}
 		if passcode, ok := createRequest.Opts["passcode"]; ok {
 			if passcodeAsString, ok := passcode.(string); !ok {
 				return voldriver.ErrorResponse{Err: "Opts.passcode must be a string value"}
@@ -80,7 +73,7 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 		}
 		d.volumes[createRequest.Name] = &volInfo
 
-		createDir := d.volumePath(logger, id.(string))
+		createDir := d.volumePath(logger, createRequest.Name)
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
 		orig := syscall.Umask(000)
 		defer syscall.Umask(orig)
@@ -89,7 +82,7 @@ func (d *LocalDriver) Create(logger lager.Logger, createRequest voldriver.Create
 		return voldriver.ErrorResponse{}
 	}
 
-	if existingVolume.Name != id {
+	if existingVolume.Name != createRequest.Name {
 		logger.Info("duplicate-volume", lager.Data{"volume_name": createRequest.Name})
 		return voldriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' already exists with a different volume ID", createRequest.Name)}
 	}
