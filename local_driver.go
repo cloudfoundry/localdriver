@@ -9,11 +9,12 @@ import (
 
 	"path/filepath"
 
+	"code.cloudfoundry.org/goshims/filepath"
+	"code.cloudfoundry.org/goshims/os"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/voldriver"
+	"context"
 	"golang.org/x/crypto/bcrypt"
-	"code.cloudfoundry.org/goshims/os"
-	"code.cloudfoundry.org/goshims/filepath"
 	"syscall"
 )
 
@@ -28,16 +29,16 @@ type LocalVolumeInfo struct {
 
 type LocalDriver struct {
 	volumes       map[string]*LocalVolumeInfo
-	os    osshim.Os
-	filepath filepathshim.Filepath
+	os            osshim.Os
+	filepath      filepathshim.Filepath
 	mountPathRoot string
 }
 
 func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string) *LocalDriver {
 	return &LocalDriver{
 		volumes:       map[string]*LocalVolumeInfo{},
-		os:    os,
-		filepath: filepath,
+		os:            os,
+		filepath:      filepath,
 		mountPathRoot: mountPathRoot,
 	}
 }
@@ -99,7 +100,7 @@ func (d *LocalDriver) List(logger lager.Logger) voldriver.ListResponse {
 	return listResponse
 }
 
-func (d *LocalDriver) Mount(logger lager.Logger, mountRequest voldriver.MountRequest) voldriver.MountResponse {
+func (d *LocalDriver) Mount(logger lager.Logger, ctx context.Context, mountRequest voldriver.MountRequest) voldriver.MountResponse {
 	logger = logger.Session("mount", lager.Data{"volume": mountRequest.Name})
 
 	if mountRequest.Name == "" {
