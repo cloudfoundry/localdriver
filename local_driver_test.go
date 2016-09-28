@@ -294,7 +294,7 @@ var _ = Describe("Local Driver", func() {
 		Context("when a volume is mounted", func() {
 			BeforeEach(func() {
 				createSuccessful(logger, localDriver, fakeOs, volumeId, "")
-				mountSuccessful(logger, ctx, localDriver, volumeId, fakeFilepath, "")
+				mountSuccessful(logger, localDriver, volumeId, fakeFilepath, "")
 			})
 
 			It("returns the mount point on a /VolumeDriver.Path", func() {
@@ -390,7 +390,7 @@ var _ = Describe("Local Driver", func() {
 
 			Context("when volume has been mounted", func() {
 				It("/VolumePlugin.Remove unmounts and destroys volume", func() {
-					mountSuccessful(logger, ctx, localDriver, volumeId, fakeFilepath, "")
+					mountSuccessful(logger, localDriver, volumeId, fakeFilepath, "")
 
 					removeResponse := localDriver.Remove(logger, voldriver.RemoveRequest{
 						Name: volumeId,
