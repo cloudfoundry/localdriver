@@ -13,7 +13,6 @@ import (
 	"code.cloudfoundry.org/goshims/os"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/voldriver"
-	"context"
 	"golang.org/x/crypto/bcrypt"
 	"syscall"
 )
@@ -100,7 +99,7 @@ func (d *LocalDriver) List(logger lager.Logger) voldriver.ListResponse {
 	return listResponse
 }
 
-func (d *LocalDriver) Mount(logger lager.Logger, ctx context.Context, mountRequest voldriver.MountRequest) voldriver.MountResponse {
+func (d *LocalDriver) Mount(logger lager.Logger, mountRequest voldriver.MountRequest) voldriver.MountResponse {
 	logger = logger.Session("mount", lager.Data{"volume": mountRequest.Name})
 
 	if mountRequest.Name == "" {
