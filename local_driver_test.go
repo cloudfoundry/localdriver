@@ -32,7 +32,7 @@ var _ = Describe("Local Driver", func() {
 	BeforeEach(func() {
 		testLogger = lagertest.NewTestLogger("localdriver-local")
 		ctx = context.TODO()
-		env = driverhttp.NewHttpDriverEnv(&testLogger, &ctx)
+		env = driverhttp.NewHttpDriverEnv(testLogger, ctx)
 
 		mountDir = "/path/to/mount"
 

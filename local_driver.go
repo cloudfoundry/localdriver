@@ -49,7 +49,7 @@ func (d *LocalDriver) Activate(env voldriver.Env) voldriver.ActivateResponse {
 }
 
 func (d *LocalDriver) Create(env voldriver.Env, createRequest voldriver.CreateRequest) voldriver.ErrorResponse {
-	logger := (*env.Logger()).Session("create")
+	logger := env.Logger().Session("create")
 	var ok bool
 	if createRequest.Name == "" {
 		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
@@ -100,7 +100,7 @@ func (d *LocalDriver) List(env voldriver.Env) voldriver.ListResponse {
 }
 
 func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountRequest) voldriver.MountResponse {
-	logger := (*env.Logger()).Session("mount", lager.Data{"volume": mountRequest.Name})
+	logger := env.Logger().Session("mount", lager.Data{"volume": mountRequest.Name})
 
 	if mountRequest.Name == "" {
 		return voldriver.MountResponse{Err: "Missing mandatory 'volume_name'"}
@@ -151,7 +151,7 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 }
 
 func (d *LocalDriver) Path(env voldriver.Env, pathRequest voldriver.PathRequest) voldriver.PathResponse {
-	logger := (*env.Logger()).Session("path", lager.Data{"volume": pathRequest.Name})
+	logger := env.Logger().Session("path", lager.Data{"volume": pathRequest.Name})
 
 	if pathRequest.Name == "" {
 		return voldriver.PathResponse{Err: "Missing mandatory 'volume_name'"}
@@ -174,7 +174,7 @@ func (d *LocalDriver) Path(env voldriver.Env, pathRequest voldriver.PathRequest)
 }
 
 func (d *LocalDriver) Unmount(env voldriver.Env, unmountRequest voldriver.UnmountRequest) voldriver.ErrorResponse {
-	logger := (*env.Logger()).Session("unmount", lager.Data{"volume": unmountRequest.Name})
+	logger := env.Logger().Session("unmount", lager.Data{"volume": unmountRequest.Name})
 
 	if unmountRequest.Name == "" {
 		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
@@ -197,7 +197,7 @@ func (d *LocalDriver) Unmount(env voldriver.Env, unmountRequest voldriver.Unmoun
 }
 
 func (d *LocalDriver) Remove(env voldriver.Env, removeRequest voldriver.RemoveRequest) voldriver.ErrorResponse {
-	logger := (*env.Logger()).Session("remove", lager.Data{"volume": removeRequest})
+	logger := env.Logger().Session("remove", lager.Data{"volume": removeRequest})
 	logger.Info("start")
 	defer logger.Info("end")
 
@@ -235,7 +235,7 @@ func (d *LocalDriver) Remove(env voldriver.Env, removeRequest voldriver.RemoveRe
 }
 
 func (d *LocalDriver) Get(env voldriver.Env, getRequest voldriver.GetRequest) voldriver.GetResponse {
-	logger := (*env.Logger()).Session("Get")
+	logger := env.Logger().Session("Get")
 	mountpoint, err := d.get(logger, getRequest.Name)
 	if err != nil {
 		return voldriver.GetResponse{Err: err.Error()}
