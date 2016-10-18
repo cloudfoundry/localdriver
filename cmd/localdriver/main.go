@@ -18,8 +18,8 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"code.cloudfoundry.org/goshims/os"
-	"code.cloudfoundry.org/goshims/filepath"
+	"code.cloudfoundry.org/goshims/filepathshim"
+	"code.cloudfoundry.org/goshims/osshim"
 )
 
 var atAddress = flag.String(

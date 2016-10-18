@@ -7,8 +7,6 @@ import (
 	"os"
 	"path"
 
-	"code.cloudfoundry.org/goshims/filepath/filepath_fake"
-	"code.cloudfoundry.org/goshims/os/os_fake"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/localdriver"
@@ -16,6 +14,8 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"code.cloudfoundry.org/voldriver/driverhttp"
+	"code.cloudfoundry.org/goshims/osshim/os_fake"
+	"code.cloudfoundry.org/goshims/filepathshim/filepath_fake"
 )
 
 var _ = Describe("Local Driver", func() {

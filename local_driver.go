@@ -9,12 +9,12 @@ import (
 
 	"path/filepath"
 
-	"code.cloudfoundry.org/goshims/filepath"
-	"code.cloudfoundry.org/goshims/os"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/voldriver"
 	"golang.org/x/crypto/bcrypt"
 	"syscall"
+	"code.cloudfoundry.org/goshims/filepathshim"
+	"code.cloudfoundry.org/goshims/osshim"
 )
 
 const VolumesRootDir = "_volumes"
