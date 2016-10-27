@@ -42,7 +42,7 @@ func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot 
 	}
 }
 
-func (d *LocalDriver) Activate(env voldriver.Env) voldriver.ActivateResponse {
+func (d *LocalDriver) Activate(_ voldriver.Env) voldriver.ActivateResponse {
 	return voldriver.ActivateResponse{
 		Implements: []string{"VolumeDriver"},
 	}
@@ -253,7 +253,7 @@ func (d *LocalDriver) get(logger lager.Logger, volumeName string) (string, error
 	return "", errors.New("Volume not found")
 }
 
-func (d *LocalDriver) Capabilities(env voldriver.Env) voldriver.CapabilitiesResponse {
+func (d *LocalDriver) Capabilities(_ voldriver.Env) voldriver.CapabilitiesResponse {
 	return voldriver.CapabilitiesResponse{
 		Capabilities: voldriver.CapabilityInfo{Scope: "local"},
 	}
