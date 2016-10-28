@@ -59,22 +59,43 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			AfterEach(func() {
-				unmountSuccessful(env, localDriver, volumeId)
 				removeSuccessful(env, localDriver, volumeId)
 			})
 
-			It("should mount the volume on the local filesystem", func() {
-				Expect(fakeFilepath.AbsCallCount()).To(Equal(3))
-				Expect(fakeOs.MkdirAllCallCount()).To(Equal(4))
-				Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
-				from, to := fakeOs.SymlinkArgsForCall(0)
-				Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
-				Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
+			Context("when the volume exists", func() {
+				AfterEach(func() {
+					unmountSuccessful(env, localDriver, volumeId)
+				})
+
+				It("should mount the volume on the local filesystem", func() {
+					Expect(fakeFilepath.AbsCallCount()).To(Equal(3))
+					Expect(fakeOs.MkdirAllCallCount()).To(Equal(4))
+					Expect(fakeOs.SymlinkCallCount()).To(Equal(1))
+					from, to := fakeOs.SymlinkArgsForCall(0)
+					Expect(from).To(Equal("/path/to/mount/_volumes/test-volume-id"))
+					Expect(to).To(Equal("/path/to/mount/_mounts/test-volume-id"))
+				})
+
+				It("returns the mount point on a /VolumeDriver.Get response", func() {
+					getResponse := getSuccessful(env, localDriver, volumeId)
+					Expect(getResponse.Volume.Mountpoint).To(Equal("/path/to/mount/_mounts/test-volume-id"))
+				})
 			})
 
-			It("returns the mount point on a /VolumeDriver.Get response", func() {
-				getResponse := getSuccessful(env, localDriver, volumeId)
-				Expect(getResponse.Volume.Mountpoint).To(Equal("/path/to/mount/_mounts/test-volume-id"))
+			Context("when the volume is missing", func() {
+				BeforeEach(func() {
+					fakeOs.StatReturns(nil, os.ErrNotExist)
+				})
+				AfterEach(func() {
+					fakeOs.StatReturns(nil, nil)
+				})
+
+				It("returns an error", func() {
+					mountResponse := localDriver.Mount(env, voldriver.MountRequest{
+						Name: volumeId,
+					})
+					Expect(mountResponse.Err).To(Equal("Volume 'test-volume-id' is missing"))
+				})
 			})
 		})
 

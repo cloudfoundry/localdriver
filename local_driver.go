@@ -131,6 +131,17 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 
 	volumePath := d.volumePath(logger, vol.Name)
 
+	exists, err := d.exists(volumePath)
+	if err != nil {
+		logger.Error("mount-volume-failed", err)
+		return voldriver.MountResponse{Err: err.Error()}
+	}
+
+	if !exists {
+		logger.Error("mount-volume-failed", errors.New("Volume '" + mountRequest.Name + "' is missing"))
+		return voldriver.MountResponse{Err: "Volume '" + mountRequest.Name + "' is missing"}
+	}
+
 	mountPath := d.mountPath(logger, vol.Name)
 	logger.Info("mounting-volume", lager.Data{"id": vol.Name, "mountpoint": mountPath})
 
