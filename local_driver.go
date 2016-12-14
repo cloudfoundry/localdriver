@@ -9,20 +9,18 @@ import (
 
 	"path/filepath"
 
-	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/voldriver"
-	"golang.org/x/crypto/bcrypt"
 	"syscall"
+
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
+	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/voldriver"
 )
 
 const VolumesRootDir = "_volumes"
 const MountsRootDir = "_mounts"
 
 type LocalVolumeInfo struct {
-	passcode []byte
-
 	voldriver.VolumeInfo // see voldriver.resources.go
 }
 
@@ -58,19 +56,7 @@ func (d *LocalDriver) Create(env voldriver.Env, createRequest voldriver.CreateRe
 	var existingVolume *LocalVolumeInfo
 	if existingVolume, ok = d.volumes[createRequest.Name]; !ok {
 		logger.Info("creating-volume", lager.Data{"volume_name": createRequest.Name, "volume_id": createRequest.Name})
-
 		volInfo := LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: createRequest.Name}}
-		if passcode, ok := createRequest.Opts["passcode"]; ok {
-			if passcodeAsString, ok := passcode.(string); !ok {
-				return voldriver.ErrorResponse{Err: "Opts.passcode must be a string value"}
-			} else {
-				passhash, err := bcrypt.GenerateFromPassword([]byte(passcodeAsString), bcrypt.DefaultCost)
-				if err != nil {
-					return voldriver.ErrorResponse{Err: "System Failure"}
-				}
-				volInfo.passcode = passhash
-			}
-		}
 		d.volumes[createRequest.Name] = &volInfo
 
 		createDir := d.volumePath(logger, createRequest.Name)
@@ -112,23 +98,6 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 		return voldriver.MountResponse{Err: fmt.Sprintf("Volume '%s' must be created before being mounted", mountRequest.Name)}
 	}
 
-	if vol.passcode != nil {
-		//var hash []bytes
-		if passcode, ok := mountRequest.Opts["passcode"]; !ok {
-			logger.Info("missing-passcode", lager.Data{"volume_name": mountRequest.Name})
-			return voldriver.MountResponse{Err: "Volume " + mountRequest.Name + " requires a passcode"}
-		} else {
-			if passcodeAsString, ok := passcode.(string); !ok {
-				return voldriver.MountResponse{Err: "Opts.passcode must be a string value"}
-			} else {
-				if bcrypt.CompareHashAndPassword(vol.passcode, []byte(passcodeAsString)) != nil {
-					return voldriver.MountResponse{Err: "Volume " + mountRequest.Name + " access denied"}
-				}
-			}
-
-		}
-	}
-
 	volumePath := d.volumePath(logger, vol.Name)
 
 	exists, err := d.exists(volumePath)
@@ -138,7 +107,7 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 	}
 
 	if !exists {
-		logger.Error("mount-volume-failed", errors.New("Volume '" + mountRequest.Name + "' is missing"))
+		logger.Error("mount-volume-failed", errors.New("Volume '"+mountRequest.Name+"' is missing"))
 		return voldriver.MountResponse{Err: "Volume '" + mountRequest.Name + "' is missing"}
 	}
 
