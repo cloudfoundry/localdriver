@@ -9,8 +9,6 @@ import (
 
 	"path/filepath"
 
-	"syscall"
-
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
@@ -67,8 +65,8 @@ func (d *LocalDriver) Create(env voldriver.Env, createRequest voldriver.CreateRe
 
 		createDir := d.volumePath(logger, createRequest.Name)
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
-		orig := syscall.Umask(000)
-		defer syscall.Umask(orig)
+		orig := d.osHelper.Umask(000)
+		defer d.osHelper.Umask(orig)
 		d.os.MkdirAll(createDir, os.ModePerm)
 
 		return voldriver.ErrorResponse{}
@@ -267,8 +265,8 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 	}
 
 	mountsPathRoot := fmt.Sprintf("%s%s", dir, MountsRootDir)
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := d.osHelper.Umask(000)
+	defer d.osHelper.Umask(orig)
 	d.os.MkdirAll(mountsPathRoot, os.ModePerm)
 
 	return fmt.Sprintf("%s/%s", mountsPathRoot, volumeId)
@@ -281,8 +279,8 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 	}
 
 	volumesPathRoot := filepath.Join(dir, VolumesRootDir)
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := d.osHelper.Umask(000)
+	defer d.osHelper.Umask(orig)
 	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
 
 	return filepath.Join(volumesPathRoot, volumeId)
@@ -290,8 +288,8 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 
 func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) error {
 	logger.Info("link", lager.Data{"src": volumePath, "tgt": mountPath})
-	orig := syscall.Umask(000)
-	defer syscall.Umask(orig)
+	orig := d.osHelper.Umask(000)
+	defer d.osHelper.Umask(orig)
 	return d.os.Symlink(volumePath, mountPath)
 }
 
