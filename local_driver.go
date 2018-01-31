@@ -268,8 +268,8 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 		logger.Fatal("abs-failed", err)
 	}
 
-	if !strings.HasSuffix(dir, "/") {
-		dir = fmt.Sprintf("%s/", dir)
+	if !strings.HasSuffix(dir, string(os.PathSeparator)) {
+		dir = fmt.Sprintf("%s%s", dir, string(os.PathSeparator))
 	}
 
 	mountsPathRoot := fmt.Sprintf("%s%s", dir, MountsRootDir)
@@ -277,7 +277,7 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 	defer d.osHelper.Umask(orig)
 	d.os.MkdirAll(mountsPathRoot, os.ModePerm)
 
-	return fmt.Sprintf("%s/%s", mountsPathRoot, volumeId)
+	return fmt.Sprintf("%s%s%s", mountsPathRoot, string(os.PathSeparator), volumeId)
 }
 
 func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
