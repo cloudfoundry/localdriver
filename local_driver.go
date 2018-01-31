@@ -7,8 +7,6 @@ import (
 
 	"strings"
 
-	"path/filepath"
-
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
@@ -37,6 +35,16 @@ type LocalDriver struct {
 func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper) *LocalDriver {
 	return &LocalDriver{
 		volumes:       map[string]*LocalVolumeInfo{},
+		os:            os,
+		filepath:      filepath,
+		mountPathRoot: mountPathRoot,
+		osHelper:      osHelper,
+	}
+}
+
+func NewLocalDriverWithState(state map[string]*LocalVolumeInfo, os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper) *LocalDriver {
+	return &LocalDriver{
+		volumes:       state,
 		os:            os,
 		filepath:      filepath,
 		mountPathRoot: mountPathRoot,
@@ -278,12 +286,12 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 		logger.Fatal("abs-failed", err)
 	}
 
-	volumesPathRoot := filepath.Join(dir, VolumesRootDir)
+	volumesPathRoot := d.filepath.Join(dir, VolumesRootDir)
 	orig := d.osHelper.Umask(000)
 	defer d.osHelper.Umask(orig)
 	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
 
-	return filepath.Join(volumesPathRoot, volumeId)
+	return d.filepath.Join(volumesPathRoot, volumeId)
 }
 
 func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) error {
