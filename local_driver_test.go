@@ -12,6 +12,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/localdriver"
+	"code.cloudfoundry.org/localdriver/oshelper"
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/voldriver/driverhttp"
 	. "github.com/onsi/ginkgo"
@@ -38,7 +39,7 @@ var _ = Describe("Local Driver", func() {
 
 		fakeOs = &os_fake.FakeOs{}
 		fakeFilepath = &filepath_fake.FakeFilepath{}
-		localDriver = localdriver.NewLocalDriver(fakeOs, fakeFilepath, mountDir)
+		localDriver = localdriver.NewLocalDriver(fakeOs, fakeFilepath, mountDir, oshelper.NewOsHelper())
 		volumeId = "test-volume-id"
 	})
 

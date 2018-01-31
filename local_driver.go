@@ -24,19 +24,25 @@ type LocalVolumeInfo struct {
 	voldriver.VolumeInfo // see voldriver.resources.go
 }
 
+type OsHelper interface {
+	Umask(mask int) (oldmask int)
+}
+
 type LocalDriver struct {
 	volumes       map[string]*LocalVolumeInfo
 	os            osshim.Os
 	filepath      filepathshim.Filepath
 	mountPathRoot string
+	osHelper      OsHelper
 }
 
-func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string) *LocalDriver {
+func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper) *LocalDriver {
 	return &LocalDriver{
 		volumes:       map[string]*LocalVolumeInfo{},
 		os:            os,
 		filepath:      filepath,
 		mountPathRoot: mountPathRoot,
+		osHelper:      osHelper,
 	}
 }
 
