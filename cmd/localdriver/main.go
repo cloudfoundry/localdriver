@@ -7,19 +7,20 @@ import (
 	"path/filepath"
 
 	cf_http "code.cloudfoundry.org/cfhttp"
-	"code.cloudfoundry.org/lager/lagerflags"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
 	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerflags"
+	"code.cloudfoundry.org/localdriver/oshelper"
 
+	"code.cloudfoundry.org/goshims/filepathshim"
+	"code.cloudfoundry.org/goshims/osshim"
+	"code.cloudfoundry.org/localdriver"
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/voldriver/driverhttp"
-	"code.cloudfoundry.org/localdriver"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
 	"github.com/tedsuo/ifrit/sigmon"
-	"code.cloudfoundry.org/goshims/filepathshim"
-	"code.cloudfoundry.org/goshims/osshim"
 )
 
 var atAddress = flag.String(
@@ -167,7 +168,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 		exitOnFailure(logger, err)
 	}
 
-	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir)
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper())
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 
@@ -186,7 +187,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 }
 
 func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
-	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir)
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper())
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 	return http_server.NewUnixServer(atAddress, handler)
