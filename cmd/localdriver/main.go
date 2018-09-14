@@ -44,13 +44,13 @@ var transport = flag.String(
 var mountDir = flag.String(
 	"mountDir",
 	"/tmp/volumes",
-	"Path to directory where fake volumes are created",
+	"Path to directory where local volumes are created",
 )
 
 var requireSSL = flag.Bool(
 	"requireSSL",
 	false,
-	"whether the fake driver should require ssl-secured communication",
+	"whether the local driver should require ssl-secured communication",
 )
 
 var caFile = flag.String(
@@ -88,6 +88,12 @@ var insecureSkipVerify = flag.Bool(
 	"whether SSL communication should skip verification of server IP addresses in the certificate",
 )
 
+var uniqueVolumeIds = flag.Bool(
+	"uniqueVolumeIds",
+	false,
+	"whether the local driver should opt-in to unique volumes",
+)
+
 func main() {
 	parseCommandLine()
 
@@ -99,11 +105,11 @@ func main() {
 	if *transport == "tcp" {
 		logger, logTap = newLogger()
 		defer logger.Info("ends")
-		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, false)
+		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, false, false)
 	} else if *transport == "tcp-json" {
 		logger, logTap = newLogger()
 		defer logger.Info("ends")
-		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, true)
+		localDriverServer = createLocalDriverServer(logger, *atAddress, *driversPath, *mountDir, true, *uniqueVolumeIds)
 	} else {
 		logger, logTap = newUnixLogger()
 		defer logger.Info("ends")
@@ -141,11 +147,11 @@ func processRunnerFor(servers grouper.Members) ifrit.Runner {
 	return sigmon.New(grouper.NewOrdered(os.Interrupt, servers))
 }
 
-func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool) ifrit.Runner {
+func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountDir string, jsonSpec bool, uniqueVolumeIds bool) ifrit.Runner {
 	advertisedUrl := "http://" + atAddress
 	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "localdriver", "address": advertisedUrl})
 	if jsonSpec {
-		driverJsonSpec := voldriver.DriverSpec{Name: "localdriver", Address: advertisedUrl}
+		driverJsonSpec := voldriver.DriverSpec{Name: "localdriver", Address: advertisedUrl, UniqueVolumeIds: uniqueVolumeIds}
 
 		if *requireSSL {
 			absCaFile, err := filepath.Abs(*caFile)

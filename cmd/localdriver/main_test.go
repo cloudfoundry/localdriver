@@ -3,10 +3,9 @@ package main_test
 import (
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
-
-	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/lager/lagertest"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,12 +17,10 @@ var _ = Describe("Main", func() {
 		session *gexec.Session
 		command *exec.Cmd
 		err     error
-		logger  lager.Logger
 	)
 
 	BeforeEach(func() {
 		command = exec.Command(driverPath)
-		logger = lagertest.NewTestLogger("test-localdriver")
 	})
 
 	JustBeforeEach(func() {
@@ -36,11 +33,15 @@ var _ = Describe("Main", func() {
 	})
 
 	Context("with a driver path", func() {
+		var dir string
+
 		BeforeEach(func() {
-			dir, err := ioutil.TempDir("", "driversPath")
+			var err error
+			dir, err = ioutil.TempDir("", "driversPath")
 			Expect(err).ToNot(HaveOccurred())
 
 			command.Args = append(command.Args, "-driversPath="+dir)
+			command.Args = append(command.Args, "-transport=tcp-json")
 		})
 
 		It("listens on tcp/9750 by default", func() {
@@ -48,6 +49,17 @@ var _ = Describe("Main", func() {
 				_, err := net.Dial("tcp", "0.0.0.0:9750")
 				return err
 			}, 5).ShouldNot(HaveOccurred())
+
+			specFile := filepath.Join(dir, "localdriver.json")
+			specFileContents, err := ioutil.ReadFile(specFile)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(string(specFileContents)).To(MatchJSON(`{
+				"Name": "localdriver",
+				"Addr": "http://0.0.0.0:9750",
+				"TLSConfig": null,
+				"UniqueVolumeIds": false
+			}`))
 		})
 
 		Context("in another context", func() {
@@ -56,7 +68,6 @@ var _ = Describe("Main", func() {
 			})
 
 			It("listens on tcp/9751", func() {
-
 				EventuallyWithOffset(1, func() error {
 					_, err := net.Dial("tcp", "0.0.0.0:9751")
 					return err
@@ -64,5 +75,28 @@ var _ = Describe("Main", func() {
 			})
 		})
 
+		Context("with unique volume IDs enabled", func() {
+			BeforeEach(func() {
+				command.Args = append(command.Args, "-uniqueVolumeIds")
+			})
+
+			It("sets the UniqueVolumeIds flag in the spec file", func() {
+				specFile := filepath.Join(dir, "localdriver.json")
+				Eventually(func() error {
+					_, err := os.Stat(specFile)
+					return err
+				}, 5).ShouldNot(HaveOccurred())
+
+				specFileContents, err := ioutil.ReadFile(specFile)
+				Expect(err).NotTo(HaveOccurred())
+
+				Expect(string(specFileContents)).To(MatchJSON(`{
+					"Name": "localdriver",
+					"Addr": "http://0.0.0.0:9750",
+					"TLSConfig": null,
+					"UniqueVolumeIds": true
+				}`))
+			})
+		})
 	})
 })
