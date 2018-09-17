@@ -174,7 +174,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 		exitOnFailure(logger, err)
 	}
 
-	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper())
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper(), uniqueVolumeIds)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 
@@ -193,7 +193,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 }
 
 func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mountDir string) ifrit.Runner {
-	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper())
+	client := localdriver.NewLocalDriver(&osshim.OsShim{}, &filepathshim.FilepathShim{}, mountDir, oshelper.NewOsHelper(), false)
 	handler, err := driverhttp.NewHandler(logger, client)
 	exitOnFailure(logger, err)
 	return http_server.NewUnixServer(atAddress, handler)

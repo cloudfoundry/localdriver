@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"code.cloudfoundry.org/goshims/filepathshim"
-	"code.cloudfoundry.org/goshims/filepathshim/filepath_fake"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/goshims/osshim/os_fake"
 	"code.cloudfoundry.org/lager"
@@ -18,38 +17,50 @@ import (
 	"code.cloudfoundry.org/localdriver/oshelper"
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/voldriver/driverhttp"
+	voldriverutils "code.cloudfoundry.org/voldriver/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Local Driver", func() {
 	var (
-		testLogger     lager.Logger
-		ctx            context.Context
-		env            voldriver.Env
-		localDriver    *localdriver.LocalDriver
-		mountDir       string
-		volumeId       string
-		err            error
-		expectedVolume string
-		expectedMounts string
+		testLogger      lager.Logger
+		ctx             context.Context
+		env             voldriver.Env
+		localDriver     *localdriver.LocalDriver
+		mountDir        string
+		volumeId        string
+		err             error
+		expectedVolume  string
+		expectedMounts  string
+		uniqueVolumeIds bool
+		testOs          osshim.Os
+		testFilepath    filepathshim.Filepath
+		state           map[string]*localdriver.LocalVolumeInfo
 	)
+
 	BeforeEach(func() {
 		testLogger = lagertest.NewTestLogger("localdriver-local")
 		ctx = context.TODO()
 		env = driverhttp.NewHttpDriverEnv(testLogger, ctx)
 
-		testOs := &osshim.OsShim{}
-		testFilepath := &filepathshim.FilepathShim{}
-
 		mountDir, err = ioutil.TempDir("", "localDrivertest")
 		Expect(err).ToNot(HaveOccurred())
 
-		localDriver = localdriver.NewLocalDriver(testOs, testFilepath, mountDir, oshelper.NewOsHelper())
 		volumeId = "test-volume-id"
+		uniqueVolumeIds = false
 
 		expectedVolume = filepath.Join(mountDir, "_volumes", "test-volume-id")
 		expectedMounts = filepath.Join(mountDir, "_mounts", "test-volume-id")
+
+		testOs = &osshim.OsShim{}
+		testFilepath = &filepathshim.FilepathShim{}
+
+		state = map[string]*localdriver.LocalVolumeInfo{}
+	})
+
+	JustBeforeEach(func() {
+		localDriver = localdriver.NewLocalDriverWithState(state, testOs, testFilepath, mountDir, oshelper.NewOsHelper(), uniqueVolumeIds)
 	})
 
 	AfterEach(func() {
@@ -65,9 +76,8 @@ var _ = Describe("Local Driver", func() {
 	})
 
 	Describe("Mount", func() {
-
 		Context("when the volume has been created", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 				mountSuccessful(env, localDriver, volumeId)
 			})
@@ -99,7 +109,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			Context("when the volume is missing", func() {
-				BeforeEach(func() {
+				JustBeforeEach(func() {
 					mountSuccessful(env, localDriver, volumeId)
 					expectedVolume = filepath.Join(mountDir, "_volumes", "test-volume-id")
 				})
@@ -127,8 +137,7 @@ var _ = Describe("Local Driver", func() {
 
 	Describe("Unmount", func() {
 		Context("when a volume has been created", func() {
-
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 			})
 
@@ -139,7 +148,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			Context("when a volume has been mounted", func() {
-				BeforeEach(func() {
+				JustBeforeEach(func() {
 					mountSuccessful(env, localDriver, volumeId)
 				})
 
@@ -157,7 +166,7 @@ var _ = Describe("Local Driver", func() {
 				})
 
 				Context("when the same volume is mounted a second time then unmounted", func() {
-					BeforeEach(func() {
+					JustBeforeEach(func() {
 						mountSuccessful(env, localDriver, volumeId)
 						unmountSuccessful(env, localDriver, volumeId)
 					})
@@ -175,7 +184,7 @@ var _ = Describe("Local Driver", func() {
 				Context("when the mountpath is not found on the filesystem", func() {
 					var unmountResponse voldriver.ErrorResponse
 
-					BeforeEach(func() {
+					JustBeforeEach(func() {
 						os.RemoveAll(expectedMounts)
 						unmountResponse = localDriver.Unmount(env, voldriver.UnmountRequest{
 							Name: volumeId,
@@ -195,20 +204,27 @@ var _ = Describe("Local Driver", func() {
 				Context("when the mountpath cannot be accessed", func() {
 					var (
 						unmountResponse voldriver.ErrorResponse
-						fakeOs          *os_fake.FakeOs
-						fakeFilepath    *filepath_fake.FakeFilepath
+						stubCallCount   int
 					)
 
 					BeforeEach(func() {
-						fakeOs = &os_fake.FakeOs{}
-						fakeFilepath = &filepath_fake.FakeFilepath{}
+						fakeOs := &os_fake.FakeOs{}
+						fakeOs.StatStub = func(string) (os.FileInfo, error) {
+							stubCallCount = stubCallCount + 1
 
-						state := make(map[string]*localdriver.LocalVolumeInfo)
-						volInfo := &localdriver.LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: volumeId, Mountpoint: "/path/to/mount/_mounts/some-volume-id"}}
+							if stubCallCount == 1 {
+								return nil, nil
+							} else {
+								return nil, errors.New("something bad")
+							}
+						}
+						testOs = fakeOs
+
+						volInfo := &localdriver.LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: volumeId, Mountpoint: "/path/to/mount/_mounts/test-volume-id"}}
 						state[volumeId] = volInfo
+					})
 
-						localDriver = localdriver.NewLocalDriverWithState(state, fakeOs, fakeFilepath, mountDir, oshelper.NewOsHelper())
-						fakeOs.StatReturns(nil, errors.New("something bad"))
+					JustBeforeEach(func() {
 						unmountResponse = localDriver.Unmount(env, voldriver.UnmountRequest{
 							Name: volumeId,
 						})
@@ -216,9 +232,8 @@ var _ = Describe("Local Driver", func() {
 
 					It("returns an error", func() {
 						Expect(unmountResponse.Err).To(Equal("Error establishing whether volume exists"))
-					})
 
-					It("/VolumeDriver.Get still returns the mountpoint", func() {
+						By("/VolumeDriver.Get still returns the mountpoint")
 						getResponse := getSuccessful(env, localDriver, volumeId)
 						Expect(getResponse.Volume.Mountpoint).NotTo(Equal(""))
 					})
@@ -248,13 +263,38 @@ var _ = Describe("Local Driver", func() {
 	})
 
 	Describe("Create", func() {
-		Context("when a second create is called with the same volume ID", func() {
+		Context("when the driver has not opted-in to unique volume IDs", func() {
+			It("should create a volume directory with the given volume ID", func() {
+				createSuccessful(env, localDriver, "some-volume-id")
+
+				expectedVolume = filepath.Join(mountDir, "_volumes", "some-volume-id")
+				volumeExists, err := exists(expectedVolume)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(volumeExists).To(BeTrue())
+			})
+		})
+
+		Context("when the driver has opted-in to unique volume IDs", func() {
 			BeforeEach(func() {
-				createSuccessful(env, localDriver, "volume")
+				uniqueVolumeIds = true
 			})
 
+			It("should create a volume directory with just the volume ID prefix", func() {
+				volumeId := voldriverutils.NewVolumeId("some-volume-id", "some-container-id")
+
+				createSuccessful(env, localDriver, volumeId.GetUniqueId())
+
+				expectedVolume = filepath.Join(mountDir, "_volumes", "some-volume-id")
+				volumeExists, err := exists(expectedVolume)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(volumeExists).To(BeTrue())
+			})
+		})
+
+		Context("when a second create is called with the same volume ID", func() {
 			Context("with the same opts", func() {
 				It("does nothing", func() {
+					createSuccessful(env, localDriver, "volume")
 					createSuccessful(env, localDriver, "volume")
 				})
 			})
@@ -278,7 +318,7 @@ var _ = Describe("Local Driver", func() {
 
 	Describe("Path", func() {
 		Context("when a volume is mounted", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 				mountSuccessful(env, localDriver, volumeId)
 			})
@@ -306,7 +346,7 @@ var _ = Describe("Local Driver", func() {
 			var (
 				volumeName string
 			)
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				volumeName = "my-volume"
 				createSuccessful(env, localDriver, volumeName)
 			})
@@ -323,7 +363,7 @@ var _ = Describe("Local Driver", func() {
 
 	Describe("List", func() {
 		Context("when there are volumes", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 			})
 
@@ -360,7 +400,7 @@ var _ = Describe("Local Driver", func() {
 		})
 
 		Context("when the volume has been created", func() {
-			BeforeEach(func() {
+			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 			})
 

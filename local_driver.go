@@ -11,6 +11,7 @@ import (
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/voldriver"
+	voldriverutils "code.cloudfoundry.org/voldriver/utils"
 )
 
 const VolumesRootDir = "_volumes"
@@ -25,30 +26,33 @@ type OsHelper interface {
 }
 
 type LocalDriver struct {
-	volumes       map[string]*LocalVolumeInfo
-	os            osshim.Os
-	filepath      filepathshim.Filepath
-	mountPathRoot string
-	osHelper      OsHelper
+	volumes         map[string]*LocalVolumeInfo
+	os              osshim.Os
+	filepath        filepathshim.Filepath
+	mountPathRoot   string
+	osHelper        OsHelper
+	uniqueVolumeIds bool
 }
 
-func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper) *LocalDriver {
+func NewLocalDriver(os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper, uniqueVolumeIds bool) *LocalDriver {
 	return &LocalDriver{
-		volumes:       map[string]*LocalVolumeInfo{},
-		os:            os,
-		filepath:      filepath,
-		mountPathRoot: mountPathRoot,
-		osHelper:      osHelper,
+		volumes:         map[string]*LocalVolumeInfo{},
+		os:              os,
+		filepath:        filepath,
+		mountPathRoot:   mountPathRoot,
+		osHelper:        osHelper,
+		uniqueVolumeIds: uniqueVolumeIds,
 	}
 }
 
-func NewLocalDriverWithState(state map[string]*LocalVolumeInfo, os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper) *LocalDriver {
+func NewLocalDriverWithState(state map[string]*LocalVolumeInfo, os osshim.Os, filepath filepathshim.Filepath, mountPathRoot string, osHelper OsHelper, uniqueVolumeIds bool) *LocalDriver {
 	return &LocalDriver{
-		volumes:       state,
-		os:            os,
-		filepath:      filepath,
-		mountPathRoot: mountPathRoot,
-		osHelper:      osHelper,
+		volumes:         state,
+		os:              os,
+		filepath:        filepath,
+		mountPathRoot:   mountPathRoot,
+		osHelper:        osHelper,
+		uniqueVolumeIds: uniqueVolumeIds,
 	}
 }
 
@@ -290,6 +294,15 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 	orig := d.osHelper.Umask(000)
 	defer d.osHelper.Umask(orig)
 	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
+
+	if d.uniqueVolumeIds {
+		uniqueVolumeId, err := voldriverutils.NewVolumeIdFromEncodedString(volumeId)
+		if err != nil {
+			logger.Fatal("decode-unique-volume-id-failed", err)
+		}
+
+		volumeId = uniqueVolumeId.Prefix
+	}
 
 	return d.filepath.Join(volumesPathRoot, volumeId)
 }
