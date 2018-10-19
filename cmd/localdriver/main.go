@@ -8,13 +8,12 @@ import (
 
 	cf_http "code.cloudfoundry.org/cfhttp"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
-	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/lager/lagerflags"
-	"code.cloudfoundry.org/localdriver/oshelper"
-
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
+	"code.cloudfoundry.org/lager"
+	"code.cloudfoundry.org/lager/lagerflags"
 	"code.cloudfoundry.org/localdriver"
+	"code.cloudfoundry.org/localdriver/oshelper"
 	"code.cloudfoundry.org/voldriver"
 	"code.cloudfoundry.org/voldriver/driverhttp"
 	"github.com/tedsuo/ifrit"
@@ -200,8 +199,7 @@ func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mo
 }
 
 func newLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	logger, reconfigurableSink := lagerflags.New("local-driver-server")
-	return logger, reconfigurableSink
+	return lagerflags.NewFromConfig("local-driver-server", lagerflags.ConfigFromFlags())
 }
 
 func newUnixLogger() (lager.Logger, *lager.ReconfigurableSink) {
