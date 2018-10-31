@@ -8,14 +8,15 @@ import (
 
 	cf_http "code.cloudfoundry.org/cfhttp"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
+
+	"code.cloudfoundry.org/dockerdriver"
+	"code.cloudfoundry.org/dockerdriver/driverhttp"
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagerflags"
 	"code.cloudfoundry.org/localdriver"
 	"code.cloudfoundry.org/localdriver/oshelper"
-	"code.cloudfoundry.org/voldriver"
-	"code.cloudfoundry.org/voldriver/driverhttp"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
 	"github.com/tedsuo/ifrit/http_server"
@@ -150,7 +151,7 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 	advertisedUrl := "http://" + atAddress
 	logger.Info("writing-spec-file", lager.Data{"location": driversPath, "name": "localdriver", "address": advertisedUrl})
 	if jsonSpec {
-		driverJsonSpec := voldriver.DriverSpec{Name: "localdriver", Address: advertisedUrl, UniqueVolumeIds: uniqueVolumeIds}
+		driverJsonSpec := dockerdriver.DriverSpec{Name: "localdriver", Address: advertisedUrl, UniqueVolumeIds: uniqueVolumeIds}
 
 		if *requireSSL {
 			absCaFile, err := filepath.Abs(*caFile)
@@ -159,17 +160,17 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 			exitOnFailure(logger, err)
 			absClientKeyFile, err := filepath.Abs(*clientKeyFile)
 			exitOnFailure(logger, err)
-			driverJsonSpec.TLSConfig = &voldriver.TLSConfig{InsecureSkipVerify: *insecureSkipVerify, CAFile: absCaFile, CertFile: absClientCertFile, KeyFile: absClientKeyFile}
+			driverJsonSpec.TLSConfig = &dockerdriver.TLSConfig{InsecureSkipVerify: *insecureSkipVerify, CAFile: absCaFile, CertFile: absClientCertFile, KeyFile: absClientKeyFile}
 			driverJsonSpec.Address = "https://" + atAddress
 		}
 
 		jsonBytes, err := json.Marshal(driverJsonSpec)
 
 		exitOnFailure(logger, err)
-		err = voldriver.WriteDriverSpec(logger, driversPath, "localdriver", "json", jsonBytes)
+		err = dockerdriver.WriteDriverSpec(logger, driversPath, "localdriver", "json", jsonBytes)
 		exitOnFailure(logger, err)
 	} else {
-		err := voldriver.WriteDriverSpec(logger, driversPath, "localdriver", "spec", []byte(advertisedUrl))
+		err := dockerdriver.WriteDriverSpec(logger, driversPath, "localdriver", "spec", []byte(advertisedUrl))
 		exitOnFailure(logger, err)
 	}
 
@@ -199,11 +200,11 @@ func createLocalDriverUnixServer(logger lager.Logger, atAddress, driversPath, mo
 }
 
 func newLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	return lagerflags.NewFromConfig("local-driver-server", lagerflags.ConfigFromFlags())
+	return lagerflags.NewFromConfig("localdriver-server", lagerflags.ConfigFromFlags())
 }
 
 func newUnixLogger() (lager.Logger, *lager.ReconfigurableSink) {
-	logger, reconfigurableSink := lagerflags.New("local-driver-server")
+	logger, reconfigurableSink := lagerflags.New("localdriver-server")
 	return logger, reconfigurableSink
 }
 

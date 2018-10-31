@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"code.cloudfoundry.org/dockerdriver"
+	"code.cloudfoundry.org/dockerdriver/driverhttp"
+	dockerdriverutils "code.cloudfoundry.org/dockerdriver/utils"
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/goshims/osshim/os_fake"
@@ -15,9 +18,6 @@ import (
 	"code.cloudfoundry.org/lager/lagertest"
 	"code.cloudfoundry.org/localdriver"
 	"code.cloudfoundry.org/localdriver/oshelper"
-	"code.cloudfoundry.org/voldriver"
-	"code.cloudfoundry.org/voldriver/driverhttp"
-	voldriverutils "code.cloudfoundry.org/voldriver/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -26,7 +26,7 @@ var _ = Describe("Local Driver", func() {
 	var (
 		testLogger      lager.Logger
 		ctx             context.Context
-		env             voldriver.Env
+		env             dockerdriver.Env
 		localDriver     *localdriver.LocalDriver
 		mountDir        string
 		volumeId        string
@@ -83,7 +83,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			AfterEach(func() {
-				localDriver.Remove(env, voldriver.RemoveRequest{
+				localDriver.Remove(env, dockerdriver.RemoveRequest{
 					Name: volumeId,
 				})
 			})
@@ -117,7 +117,7 @@ var _ = Describe("Local Driver", func() {
 				It("returns an error", func() {
 					os.RemoveAll(expectedVolume)
 
-					mountResponse := localDriver.Mount(env, voldriver.MountRequest{
+					mountResponse := localDriver.Mount(env, dockerdriver.MountRequest{
 						Name: volumeId,
 					})
 					Expect(mountResponse.Err).To(Equal("Volume 'test-volume-id' is missing"))
@@ -127,7 +127,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when the volume has not been created", func() {
 			It("returns an error", func() {
-				mountResponse := localDriver.Mount(env, voldriver.MountRequest{
+				mountResponse := localDriver.Mount(env, dockerdriver.MountRequest{
 					Name: "bla",
 				})
 				Expect(mountResponse.Err).To(Equal("Volume 'bla' must be created before being mounted"))
@@ -142,7 +142,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			AfterEach(func() {
-				localDriver.Remove(env, voldriver.RemoveRequest{
+				localDriver.Remove(env, dockerdriver.RemoveRequest{
 					Name: volumeId,
 				})
 			})
@@ -182,11 +182,11 @@ var _ = Describe("Local Driver", func() {
 				})
 
 				Context("when the mountpath is not found on the filesystem", func() {
-					var unmountResponse voldriver.ErrorResponse
+					var unmountResponse dockerdriver.ErrorResponse
 
 					JustBeforeEach(func() {
 						os.RemoveAll(expectedMounts)
-						unmountResponse = localDriver.Unmount(env, voldriver.UnmountRequest{
+						unmountResponse = localDriver.Unmount(env, dockerdriver.UnmountRequest{
 							Name: volumeId,
 						})
 					})
@@ -203,7 +203,7 @@ var _ = Describe("Local Driver", func() {
 
 				Context("when the mountpath cannot be accessed", func() {
 					var (
-						unmountResponse voldriver.ErrorResponse
+						unmountResponse dockerdriver.ErrorResponse
 						stubCallCount   int
 					)
 
@@ -220,12 +220,12 @@ var _ = Describe("Local Driver", func() {
 						}
 						testOs = fakeOs
 
-						volInfo := &localdriver.LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: volumeId, Mountpoint: "/path/to/mount/_mounts/test-volume-id"}}
+						volInfo := &localdriver.LocalVolumeInfo{VolumeInfo: dockerdriver.VolumeInfo{Name: volumeId, Mountpoint: "/path/to/mount/_mounts/test-volume-id"}}
 						state[volumeId] = volInfo
 					})
 
 					JustBeforeEach(func() {
-						unmountResponse = localDriver.Unmount(env, voldriver.UnmountRequest{
+						unmountResponse = localDriver.Unmount(env, dockerdriver.UnmountRequest{
 							Name: volumeId,
 						})
 					})
@@ -242,7 +242,7 @@ var _ = Describe("Local Driver", func() {
 
 			Context("when the volume has not been mounted", func() {
 				It("returns an error", func() {
-					unmountResponse := localDriver.Unmount(env, voldriver.UnmountRequest{
+					unmountResponse := localDriver.Unmount(env, dockerdriver.UnmountRequest{
 						Name: volumeId,
 					})
 
@@ -253,7 +253,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when the volume has not been created", func() {
 			It("returns an error", func() {
-				unmountResponse := localDriver.Unmount(env, voldriver.UnmountRequest{
+				unmountResponse := localDriver.Unmount(env, dockerdriver.UnmountRequest{
 					Name: volumeId,
 				})
 
@@ -280,7 +280,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			It("should create a volume directory with just the volume ID prefix", func() {
-				volumeId := voldriverutils.NewVolumeId("some-volume-id", "some-container-id")
+				volumeId := dockerdriverutils.NewVolumeId("some-volume-id", "some-container-id")
 
 				createSuccessful(env, localDriver, volumeId.GetUniqueId())
 
@@ -324,7 +324,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			It("returns the mount point on a /VolumeDriver.Path", func() {
-				pathResponse := localDriver.Path(env, voldriver.PathRequest{
+				pathResponse := localDriver.Path(env, dockerdriver.PathRequest{
 					Name: volumeId,
 				})
 				Expect(pathResponse.Err).To(Equal(""))
@@ -334,7 +334,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when a volume is not created", func() {
 			It("returns an error on /VolumeDriver.Path", func() {
-				pathResponse := localDriver.Path(env, voldriver.PathRequest{
+				pathResponse := localDriver.Path(env, dockerdriver.PathRequest{
 					Name: "volume-that-does-not-exist",
 				})
 				Expect(pathResponse.Err).NotTo(Equal(""))
@@ -352,7 +352,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			It("returns an error on /VolumeDriver.Path", func() {
-				pathResponse := localDriver.Path(env, voldriver.PathRequest{
+				pathResponse := localDriver.Path(env, dockerdriver.PathRequest{
 					Name: "volume-that-does-not-exist",
 				})
 				Expect(pathResponse.Err).NotTo(Equal(""))
@@ -386,14 +386,14 @@ var _ = Describe("Local Driver", func() {
 
 	Describe("Remove", func() {
 		It("should fail if no volume name provided", func() {
-			removeResponse := localDriver.Remove(env, voldriver.RemoveRequest{
+			removeResponse := localDriver.Remove(env, dockerdriver.RemoveRequest{
 				Name: "",
 			})
 			Expect(removeResponse.Err).To(Equal("Missing mandatory 'volume_name'"))
 		})
 
 		It("should fail if no volume was created", func() {
-			removeResponse := localDriver.Remove(env, voldriver.RemoveRequest{
+			removeResponse := localDriver.Remove(env, dockerdriver.RemoveRequest{
 				Name: volumeId,
 			})
 			Expect(removeResponse.Err).To(Equal("Volume '" + volumeId + "' not found"))
@@ -405,7 +405,7 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			It("/VolumePlugin.Remove destroys volume", func() {
-				removeResponse := localDriver.Remove(env, voldriver.RemoveRequest{
+				removeResponse := localDriver.Remove(env, dockerdriver.RemoveRequest{
 					Name: volumeId,
 				})
 				Expect(removeResponse.Err).To(Equal(""))
@@ -415,7 +415,7 @@ var _ = Describe("Local Driver", func() {
 				It("/VolumePlugin.Remove unmounts and destroys volume", func() {
 					mountSuccessful(env, localDriver, volumeId)
 
-					removeResponse := localDriver.Remove(env, voldriver.RemoveRequest{
+					removeResponse := localDriver.Remove(env, dockerdriver.RemoveRequest{
 						Name: volumeId,
 					})
 					Expect(removeResponse.Err).To(Equal(""))
@@ -427,7 +427,7 @@ var _ = Describe("Local Driver", func() {
 
 		Context("when the volume has not been created", func() {
 			It("returns an error", func() {
-				removeResponse := localDriver.Remove(env, voldriver.RemoveRequest{
+				removeResponse := localDriver.Remove(env, dockerdriver.RemoveRequest{
 					Name: volumeId,
 				})
 				Expect(removeResponse.Err).To(Equal("Volume '" + volumeId + "' not found"))
@@ -436,8 +436,8 @@ var _ = Describe("Local Driver", func() {
 	})
 })
 
-func getUnsuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName string) {
-	getResponse := localDriver.Get(env, voldriver.GetRequest{
+func getUnsuccessful(env dockerdriver.Env, localDriver dockerdriver.Driver, volumeName string) {
+	getResponse := localDriver.Get(env, dockerdriver.GetRequest{
 		Name: volumeName,
 	})
 
@@ -445,8 +445,8 @@ func getUnsuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName
 	Expect(getResponse.Volume.Name).To(Equal(""))
 }
 
-func getSuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName string) voldriver.GetResponse {
-	getResponse := localDriver.Get(env, voldriver.GetRequest{
+func getSuccessful(env dockerdriver.Env, localDriver dockerdriver.Driver, volumeName string) dockerdriver.GetResponse {
+	getResponse := localDriver.Get(env, dockerdriver.GetRequest{
 		Name: volumeName,
 	})
 
@@ -455,22 +455,22 @@ func getSuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName s
 	return getResponse
 }
 
-func createSuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName string) {
-	createResponse := localDriver.Create(env, voldriver.CreateRequest{
+func createSuccessful(env dockerdriver.Env, localDriver dockerdriver.Driver, volumeName string) {
+	createResponse := localDriver.Create(env, dockerdriver.CreateRequest{
 		Name: volumeName,
 	})
 	Expect(createResponse.Err).To(Equal(""))
 }
 
-func mountSuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName string) {
-	mountResponse := localDriver.Mount(env, voldriver.MountRequest{
+func mountSuccessful(env dockerdriver.Env, localDriver dockerdriver.Driver, volumeName string) {
+	mountResponse := localDriver.Mount(env, dockerdriver.MountRequest{
 		Name: volumeName,
 	})
 	Expect(mountResponse.Err).To(Equal(""))
 }
 
-func unmountSuccessful(env voldriver.Env, localDriver voldriver.Driver, volumeName string) {
-	unmountResponse := localDriver.Unmount(env, voldriver.UnmountRequest{
+func unmountSuccessful(env dockerdriver.Env, localDriver dockerdriver.Driver, volumeName string) {
+	unmountResponse := localDriver.Unmount(env, dockerdriver.UnmountRequest{
 		Name: volumeName,
 	})
 	Expect(unmountResponse.Err).To(Equal(""))

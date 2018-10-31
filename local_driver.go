@@ -7,18 +7,18 @@ import (
 
 	"strings"
 
+	"code.cloudfoundry.org/dockerdriver"
+	dockerdriverutils "code.cloudfoundry.org/dockerdriver/utils"
 	"code.cloudfoundry.org/goshims/filepathshim"
 	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/lager"
-	"code.cloudfoundry.org/voldriver"
-	voldriverutils "code.cloudfoundry.org/voldriver/utils"
 )
 
 const VolumesRootDir = "_volumes"
 const MountsRootDir = "_mounts"
 
 type LocalVolumeInfo struct {
-	voldriver.VolumeInfo // see voldriver.resources.go
+	dockerdriver.VolumeInfo // see dockerdriver.resources.go
 }
 
 type OsHelper interface {
@@ -56,23 +56,23 @@ func NewLocalDriverWithState(state map[string]*LocalVolumeInfo, os osshim.Os, fi
 	}
 }
 
-func (d *LocalDriver) Activate(_ voldriver.Env) voldriver.ActivateResponse {
-	return voldriver.ActivateResponse{
+func (d *LocalDriver) Activate(_ dockerdriver.Env) dockerdriver.ActivateResponse {
+	return dockerdriver.ActivateResponse{
 		Implements: []string{"VolumeDriver"},
 	}
 }
 
-func (d *LocalDriver) Create(env voldriver.Env, createRequest voldriver.CreateRequest) voldriver.ErrorResponse {
+func (d *LocalDriver) Create(env dockerdriver.Env, createRequest dockerdriver.CreateRequest) dockerdriver.ErrorResponse {
 	logger := env.Logger().Session("create")
 	var ok bool
 	if createRequest.Name == "" {
-		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
+		return dockerdriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
 	var existingVolume *LocalVolumeInfo
 	if existingVolume, ok = d.volumes[createRequest.Name]; !ok {
 		logger.Info("creating-volume", lager.Data{"volume_name": createRequest.Name, "volume_id": createRequest.Name})
-		volInfo := LocalVolumeInfo{VolumeInfo: voldriver.VolumeInfo{Name: createRequest.Name}}
+		volInfo := LocalVolumeInfo{VolumeInfo: dockerdriver.VolumeInfo{Name: createRequest.Name}}
 		d.volumes[createRequest.Name] = &volInfo
 
 		createDir := d.volumePath(logger, createRequest.Name)
@@ -81,19 +81,19 @@ func (d *LocalDriver) Create(env voldriver.Env, createRequest voldriver.CreateRe
 		defer d.osHelper.Umask(orig)
 		d.os.MkdirAll(createDir, os.ModePerm)
 
-		return voldriver.ErrorResponse{}
+		return dockerdriver.ErrorResponse{}
 	}
 
 	if existingVolume.Name != createRequest.Name {
 		logger.Info("duplicate-volume", lager.Data{"volume_name": createRequest.Name})
-		return voldriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' already exists with a different volume ID", createRequest.Name)}
+		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' already exists with a different volume ID", createRequest.Name)}
 	}
 
-	return voldriver.ErrorResponse{}
+	return dockerdriver.ErrorResponse{}
 }
 
-func (d *LocalDriver) List(env voldriver.Env) voldriver.ListResponse {
-	listResponse := voldriver.ListResponse{}
+func (d *LocalDriver) List(env dockerdriver.Env) dockerdriver.ListResponse {
+	listResponse := dockerdriver.ListResponse{}
 	for _, volume := range d.volumes {
 		listResponse.Volumes = append(listResponse.Volumes, volume.VolumeInfo)
 	}
@@ -101,17 +101,17 @@ func (d *LocalDriver) List(env voldriver.Env) voldriver.ListResponse {
 	return listResponse
 }
 
-func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountRequest) voldriver.MountResponse {
+func (d *LocalDriver) Mount(env dockerdriver.Env, mountRequest dockerdriver.MountRequest) dockerdriver.MountResponse {
 	logger := env.Logger().Session("mount", lager.Data{"volume": mountRequest.Name})
 
 	if mountRequest.Name == "" {
-		return voldriver.MountResponse{Err: "Missing mandatory 'volume_name'"}
+		return dockerdriver.MountResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
 	var vol *LocalVolumeInfo
 	var ok bool
 	if vol, ok = d.volumes[mountRequest.Name]; !ok {
-		return voldriver.MountResponse{Err: fmt.Sprintf("Volume '%s' must be created before being mounted", mountRequest.Name)}
+		return dockerdriver.MountResponse{Err: fmt.Sprintf("Volume '%s' must be created before being mounted", mountRequest.Name)}
 	}
 
 	volumePath := d.volumePath(logger, vol.Name)
@@ -119,12 +119,12 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 	exists, err := d.exists(volumePath)
 	if err != nil {
 		logger.Error("mount-volume-failed", err)
-		return voldriver.MountResponse{Err: err.Error()}
+		return dockerdriver.MountResponse{Err: err.Error()}
 	}
 
 	if !exists {
 		logger.Error("mount-volume-failed", errors.New("Volume '"+mountRequest.Name+"' is missing"))
-		return voldriver.MountResponse{Err: "Volume '" + mountRequest.Name + "' is missing"}
+		return dockerdriver.MountResponse{Err: "Volume '" + mountRequest.Name + "' is missing"}
 	}
 
 	mountPath := d.mountPath(logger, vol.Name)
@@ -134,7 +134,7 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 		err := d.mount(logger, volumePath, mountPath)
 		if err != nil {
 			logger.Error("mount-volume-failed", err)
-			return voldriver.MountResponse{Err: fmt.Sprintf("Error mounting volume: %s", err.Error())}
+			return dockerdriver.MountResponse{Err: fmt.Sprintf("Error mounting volume: %s", err.Error())}
 		}
 		vol.Mountpoint = mountPath
 	}
@@ -142,71 +142,71 @@ func (d *LocalDriver) Mount(env voldriver.Env, mountRequest voldriver.MountReque
 	vol.MountCount++
 	logger.Info("volume-mounted", lager.Data{"name": vol.Name, "count": vol.MountCount})
 
-	mountResponse := voldriver.MountResponse{Mountpoint: vol.Mountpoint}
+	mountResponse := dockerdriver.MountResponse{Mountpoint: vol.Mountpoint}
 	return mountResponse
 }
 
-func (d *LocalDriver) Path(env voldriver.Env, pathRequest voldriver.PathRequest) voldriver.PathResponse {
+func (d *LocalDriver) Path(env dockerdriver.Env, pathRequest dockerdriver.PathRequest) dockerdriver.PathResponse {
 	logger := env.Logger().Session("path", lager.Data{"volume": pathRequest.Name})
 
 	if pathRequest.Name == "" {
-		return voldriver.PathResponse{Err: "Missing mandatory 'volume_name'"}
+		return dockerdriver.PathResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
 	mountPath, err := d.get(logger, pathRequest.Name)
 	if err != nil {
 		logger.Error("failed-no-such-volume-found", err, lager.Data{"mountpoint": mountPath})
 
-		return voldriver.PathResponse{Err: fmt.Sprintf("Volume '%s' not found", pathRequest.Name)}
+		return dockerdriver.PathResponse{Err: fmt.Sprintf("Volume '%s' not found", pathRequest.Name)}
 	}
 
 	if mountPath == "" {
 		errText := "Volume not previously mounted"
 		logger.Error("failed-mountpoint-not-assigned", errors.New(errText))
-		return voldriver.PathResponse{Err: errText}
+		return dockerdriver.PathResponse{Err: errText}
 	}
 
-	return voldriver.PathResponse{Mountpoint: mountPath}
+	return dockerdriver.PathResponse{Mountpoint: mountPath}
 }
 
-func (d *LocalDriver) Unmount(env voldriver.Env, unmountRequest voldriver.UnmountRequest) voldriver.ErrorResponse {
+func (d *LocalDriver) Unmount(env dockerdriver.Env, unmountRequest dockerdriver.UnmountRequest) dockerdriver.ErrorResponse {
 	logger := env.Logger().Session("unmount", lager.Data{"volume": unmountRequest.Name})
 
 	if unmountRequest.Name == "" {
-		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
+		return dockerdriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
 	mountPath, err := d.get(logger, unmountRequest.Name)
 	if err != nil {
 		logger.Error("failed-no-such-volume-found", err, lager.Data{"mountpoint": mountPath})
 
-		return voldriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' not found", unmountRequest.Name)}
+		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' not found", unmountRequest.Name)}
 	}
 
 	if mountPath == "" {
 		errText := "Volume not previously mounted"
 		logger.Error("failed-mountpoint-not-assigned", errors.New(errText))
-		return voldriver.ErrorResponse{Err: errText}
+		return dockerdriver.ErrorResponse{Err: errText}
 	}
 
 	return d.unmount(logger, unmountRequest.Name, mountPath)
 }
 
-func (d *LocalDriver) Remove(env voldriver.Env, removeRequest voldriver.RemoveRequest) voldriver.ErrorResponse {
+func (d *LocalDriver) Remove(env dockerdriver.Env, removeRequest dockerdriver.RemoveRequest) dockerdriver.ErrorResponse {
 	logger := env.Logger().Session("remove", lager.Data{"volume": removeRequest})
 	logger.Info("start")
 	defer logger.Info("end")
 
 	if removeRequest.Name == "" {
-		return voldriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
+		return dockerdriver.ErrorResponse{Err: "Missing mandatory 'volume_name'"}
 	}
 
-	var response voldriver.ErrorResponse
+	var response dockerdriver.ErrorResponse
 	var vol *LocalVolumeInfo
 	var exists bool
 	if vol, exists = d.volumes[removeRequest.Name]; !exists {
 		logger.Error("failed-volume-removal", fmt.Errorf(fmt.Sprintf("Volume %s not found", removeRequest.Name)))
-		return voldriver.ErrorResponse{fmt.Sprintf("Volume '%s' not found", removeRequest.Name)}
+		return dockerdriver.ErrorResponse{fmt.Sprintf("Volume '%s' not found", removeRequest.Name)}
 	}
 
 	if vol.Mountpoint != "" {
@@ -222,22 +222,22 @@ func (d *LocalDriver) Remove(env voldriver.Env, removeRequest voldriver.RemoveRe
 	err := d.os.RemoveAll(volumePath)
 	if err != nil {
 		logger.Error("failed-removing-volume", err)
-		return voldriver.ErrorResponse{Err: fmt.Sprintf("Failed removing mount path: %s", err)}
+		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Failed removing mount path: %s", err)}
 	}
 
 	logger.Info("removing-volume", lager.Data{"name": removeRequest.Name})
 	delete(d.volumes, removeRequest.Name)
-	return voldriver.ErrorResponse{}
+	return dockerdriver.ErrorResponse{}
 }
 
-func (d *LocalDriver) Get(env voldriver.Env, getRequest voldriver.GetRequest) voldriver.GetResponse {
+func (d *LocalDriver) Get(env dockerdriver.Env, getRequest dockerdriver.GetRequest) dockerdriver.GetResponse {
 	logger := env.Logger().Session("Get")
 	mountpoint, err := d.get(logger, getRequest.Name)
 	if err != nil {
-		return voldriver.GetResponse{Err: err.Error()}
+		return dockerdriver.GetResponse{Err: err.Error()}
 	}
 
-	return voldriver.GetResponse{Volume: voldriver.VolumeInfo{Name: getRequest.Name, Mountpoint: mountpoint}}
+	return dockerdriver.GetResponse{Volume: dockerdriver.VolumeInfo{Name: getRequest.Name, Mountpoint: mountpoint}}
 }
 
 func (d *LocalDriver) get(logger lager.Logger, volumeName string) (string, error) {
@@ -249,9 +249,9 @@ func (d *LocalDriver) get(logger lager.Logger, volumeName string) (string, error
 	return "", errors.New("Volume not found")
 }
 
-func (d *LocalDriver) Capabilities(_ voldriver.Env) voldriver.CapabilitiesResponse {
-	return voldriver.CapabilitiesResponse{
-		Capabilities: voldriver.CapabilityInfo{Scope: "local"},
+func (d *LocalDriver) Capabilities(_ dockerdriver.Env) dockerdriver.CapabilitiesResponse {
+	return dockerdriver.CapabilitiesResponse{
+		Capabilities: dockerdriver.CapabilityInfo{Scope: "local"},
 	}
 }
 
@@ -296,7 +296,7 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
 
 	if d.uniqueVolumeIds {
-		uniqueVolumeId, err := voldriverutils.NewVolumeIdFromEncodedString(volumeId)
+		uniqueVolumeId, err := dockerdriverutils.NewVolumeIdFromEncodedString(volumeId)
 		if err != nil {
 			logger.Fatal("decode-unique-volume-id-failed", err)
 		}
@@ -314,7 +314,7 @@ func (d *LocalDriver) mount(logger lager.Logger, volumePath, mountPath string) e
 	return d.os.Symlink(volumePath, mountPath)
 }
 
-func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string) voldriver.ErrorResponse {
+func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string) dockerdriver.ErrorResponse {
 	logger = logger.Session("unmount")
 	logger.Info("start")
 	defer logger.Info("end")
@@ -322,25 +322,25 @@ func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string
 	exists, err := d.exists(mountPath)
 	if err != nil {
 		logger.Error("failed-retrieving-mount-info", err, lager.Data{"mountpoint": mountPath})
-		return voldriver.ErrorResponse{Err: "Error establishing whether volume exists"}
+		return dockerdriver.ErrorResponse{Err: "Error establishing whether volume exists"}
 	}
 
 	if !exists {
 		errText := fmt.Sprintf("Volume %s does not exist (path: %s), nothing to do!", name, mountPath)
 		logger.Error("failed-mountpoint-not-found", errors.New(errText))
-		return voldriver.ErrorResponse{Err: errText}
+		return dockerdriver.ErrorResponse{Err: errText}
 	}
 
 	d.volumes[name].MountCount--
 	if d.volumes[name].MountCount > 0 {
 		logger.Info("volume-still-in-use", lager.Data{"name": name, "count": d.volumes[name].MountCount})
-		return voldriver.ErrorResponse{}
+		return dockerdriver.ErrorResponse{}
 	} else {
 		logger.Info("unmount-volume-folder", lager.Data{"mountpath": mountPath})
 		err := d.os.Remove(mountPath)
 		if err != nil {
 			logger.Error("unmount-failed", err)
-			return voldriver.ErrorResponse{Err: fmt.Sprintf("Error unmounting volume: %s", err.Error())}
+			return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Error unmounting volume: %s", err.Error())}
 		}
 	}
 
@@ -348,5 +348,5 @@ func (d *LocalDriver) unmount(logger lager.Logger, name string, mountPath string
 
 	d.volumes[name].Mountpoint = ""
 
-	return voldriver.ErrorResponse{}
+	return dockerdriver.ErrorResponse{}
 }
