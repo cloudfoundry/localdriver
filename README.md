@@ -37,7 +37,7 @@ This driver is intended for test purposes only.  Watch this space in case that c
 
 ## Create
 ```
-voldriver.CreateRequest{
+dockerdriver.CreateRequest{
     Name: "Volume",
     Opts: map[string]interface{}{
         "volume_id": "something_different_than_test",
@@ -48,7 +48,7 @@ voldriver.CreateRequest{
 
 ## Mount
 ```
-localDriver.Mount(logger, voldriver.MountRequest{
+localDriver.Mount(logger, dockerdriver.MountRequest{
     Name: "Volume",
     Opts: map[string]interface{}{
         "passcode":"someStringPasscode"                 <- REQUIRED if used in Create
