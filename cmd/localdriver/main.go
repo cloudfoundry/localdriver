@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	cf_http "code.cloudfoundry.org/cfhttp"
 	cf_debug_server "code.cloudfoundry.org/debugserver"
+	"code.cloudfoundry.org/tlsconfig"
 
 	"code.cloudfoundry.org/dockerdriver"
 	"code.cloudfoundry.org/dockerdriver/driverhttp"
@@ -180,7 +180,10 @@ func createLocalDriverServer(logger lager.Logger, atAddress, driversPath, mountD
 
 	var server ifrit.Runner
 	if *requireSSL {
-		tlsConfig, err := cf_http.NewTLSConfig(*certFile, *keyFile, *caFile)
+		tlsConfig, err := tlsconfig.Build(
+			tlsconfig.WithInternalServiceDefaults(),
+			tlsconfig.WithIdentityFromFile(*certFile, *keyFile),
+		).Server(tlsconfig.WithClientAuthenticationFromFile(*caFile))
 		if err != nil {
 			logger.Fatal("tls-configuration-failed", err)
 		}
