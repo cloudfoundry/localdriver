@@ -12,7 +12,6 @@ import (
 	"code.cloudfoundry.org/dockerdriver/driverhttp"
 	dockerdriverutils "code.cloudfoundry.org/dockerdriver/utils"
 	"code.cloudfoundry.org/goshims/filepathshim"
-	"code.cloudfoundry.org/goshims/osshim"
 	"code.cloudfoundry.org/goshims/osshim/os_fake"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/lager/lagertest"
@@ -34,9 +33,10 @@ var _ = Describe("Local Driver", func() {
 		expectedVolume  string
 		expectedMounts  string
 		uniqueVolumeIds bool
-		testOs          osshim.Os
+		testOs          *os_fake.FakeOs
 		testFilepath    filepathshim.Filepath
 		state           map[string]*localdriver.LocalVolumeInfo
+		notFoundPath    string
 	)
 
 	BeforeEach(func() {
@@ -53,10 +53,32 @@ var _ = Describe("Local Driver", func() {
 		expectedVolume = filepath.Join(mountDir, "_volumes", "test-volume-id")
 		expectedMounts = filepath.Join(mountDir, "_mounts", "test-volume-id")
 
-		testOs = &osshim.OsShim{}
+		//testOs = &osshim.OsShim{}
+		testOs = &os_fake.FakeOs{}
 		testFilepath = &filepathshim.FilepathShim{}
 
 		state = map[string]*localdriver.LocalVolumeInfo{}
+
+		// This stub function tests the path to see if we've ever created it,
+		// and pretends it exists if so.
+		testOs.StatStub = func(name string) (os.FileInfo, error) {
+			if name == notFoundPath {
+				return nil, os.ErrNotExist
+			}
+			for i := 0; i < testOs.SymlinkCallCount(); i++ {
+				_, lastCreated := testOs.SymlinkArgsForCall(i)
+				if lastCreated == name {
+					return nil, nil
+				}
+			}
+			for i := 0; i < testOs.MkdirAllCallCount(); i++ {
+				lastCreated, _ := testOs.MkdirAllArgsForCall(i)
+				if lastCreated == name {
+					return nil, nil
+				}
+			}
+			return nil, os.ErrNotExist
+		}
 	})
 
 	JustBeforeEach(func() {
@@ -77,6 +99,10 @@ var _ = Describe("Local Driver", func() {
 
 	Describe("Mount", func() {
 		Context("when the volume has been created", func() {
+
+			BeforeEach(func() {
+			})
+
 			JustBeforeEach(func() {
 				createSuccessful(env, localDriver, volumeId)
 				mountSuccessful(env, localDriver, volumeId)
@@ -89,17 +115,15 @@ var _ = Describe("Local Driver", func() {
 			})
 
 			Context("when the volume exists", func() {
+
 				AfterEach(func() {
 					unmountSuccessful(env, localDriver, volumeId)
 				})
 
 				It("should mount the volume on the local filesystem", func() {
-					fromExists, err := exists(expectedVolume)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(fromExists).To(BeTrue())
-					toExists, err := exists(expectedMounts)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(toExists).To(BeTrue())
+					Expect(testOs.SymlinkCallCount()).NotTo(BeZero())
+					_, path := testOs.SymlinkArgsForCall(0)
+					Expect(path).To(Equal(expectedMounts))
 				})
 
 				It("returns the mount point on a /VolumeDriver.Get response", func() {
@@ -115,7 +139,7 @@ var _ = Describe("Local Driver", func() {
 				})
 
 				It("returns an error", func() {
-					os.RemoveAll(expectedVolume)
+					notFoundPath = expectedVolume
 
 					mountResponse := localDriver.Mount(env, dockerdriver.MountRequest{
 						Name: volumeId,
@@ -185,7 +209,7 @@ var _ = Describe("Local Driver", func() {
 					var unmountResponse dockerdriver.ErrorResponse
 
 					JustBeforeEach(func() {
-						os.RemoveAll(expectedMounts)
+						notFoundPath = expectedMounts
 						unmountResponse = localDriver.Unmount(env, dockerdriver.UnmountRequest{
 							Name: volumeId,
 						})
@@ -268,9 +292,8 @@ var _ = Describe("Local Driver", func() {
 				createSuccessful(env, localDriver, "some-volume-id")
 
 				expectedVolume = filepath.Join(mountDir, "_volumes", "some-volume-id")
-				volumeExists, err := exists(expectedVolume)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(volumeExists).To(BeTrue())
+				created, _ := testOs.MkdirAllArgsForCall(testOs.MkdirAllCallCount() - 1)
+				Expect(created).To(Equal(expectedVolume))
 			})
 		})
 
@@ -285,9 +308,8 @@ var _ = Describe("Local Driver", func() {
 				createSuccessful(env, localDriver, volumeId.GetUniqueId())
 
 				expectedVolume = filepath.Join(mountDir, "_volumes", "some-volume-id")
-				volumeExists, err := exists(expectedVolume)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(volumeExists).To(BeTrue())
+				created, _ := testOs.MkdirAllArgsForCall(testOs.MkdirAllCallCount() - 1)
+				Expect(created).To(Equal(expectedVolume))
 			})
 		})
 

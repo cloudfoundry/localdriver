@@ -206,7 +206,7 @@ func (d *LocalDriver) Remove(env dockerdriver.Env, removeRequest dockerdriver.Re
 	var exists bool
 	if vol, exists = d.volumes[removeRequest.Name]; !exists {
 		logger.Error("failed-volume-removal", fmt.Errorf(fmt.Sprintf("Volume %s not found", removeRequest.Name)))
-		return dockerdriver.ErrorResponse{fmt.Sprintf("Volume '%s' not found", removeRequest.Name)}
+		return dockerdriver.ErrorResponse{Err: fmt.Sprintf("Volume '%s' not found", removeRequest.Name)}
 	}
 
 	if vol.Mountpoint != "" {

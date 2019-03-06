@@ -118,11 +118,11 @@ func main() {
 	}
 
 	servers := grouper.Members{
-		{"localdriver-server", localDriverServer},
+		{Name: "localdriver-server", Runner: localDriverServer},
 	}
 	if dbgAddr := cf_debug_server.DebugAddress(flag.CommandLine); dbgAddr != "" {
 		servers = append(grouper.Members{
-			{"debug-server", cf_debug_server.Runner(dbgAddr, logTap)},
+			{Name: "debug-server", Runner: cf_debug_server.Runner(dbgAddr, logTap)},
 		}, servers...)
 	}
 	process := ifrit.Invoke(processRunnerFor(servers))
