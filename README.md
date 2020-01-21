@@ -1,7 +1,11 @@
 # a volman driver for local disk
 This driver is intended for test purposes only.  Watch this space in case that changes...
 
-#Usage of localdriver:
+## Reporting issues and requesting features
+
+Please report all issues and feature requests in [cloudfoundry/diego-release](https://github.com/cloudfoundry/diego-release/issues).
+
+# Usage of localdriver:
 ----
 ```
   -caFile string
