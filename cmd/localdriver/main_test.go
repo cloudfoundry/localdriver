@@ -29,7 +29,7 @@ var _ = Describe("Main", func() {
 	})
 
 	AfterEach(func() {
-		session.Kill().Wait()
+		session.Kill().Wait("2s")
 	})
 
 	Context("with a driver path", func() {
