@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -44,7 +43,7 @@ var _ = Describe("Local Driver", func() {
 		ctx = context.TODO()
 		env = driverhttp.NewHttpDriverEnv(testLogger, ctx)
 
-		mountDir, err = ioutil.TempDir("", "localDrivertest")
+		mountDir, err = os.MkdirTemp("", "localDrivertest")
 		Expect(err).ToNot(HaveOccurred())
 
 		volumeId = "test-volume-id"
