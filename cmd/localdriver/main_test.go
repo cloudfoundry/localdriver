@@ -1,7 +1,6 @@
 package main_test
 
 import (
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -37,7 +36,7 @@ var _ = Describe("Main", func() {
 
 		BeforeEach(func() {
 			var err error
-			dir, err = ioutil.TempDir("", "driversPath")
+			dir, err = os.MkdirTemp("", "driversPath")
 			Expect(err).ToNot(HaveOccurred())
 
 			command.Args = append(command.Args, "-driversPath="+dir)
@@ -51,7 +50,7 @@ var _ = Describe("Main", func() {
 			}, 5).ShouldNot(HaveOccurred())
 
 			specFile := filepath.Join(dir, "localdriver.json")
-			specFileContents, err := ioutil.ReadFile(specFile)
+			specFileContents, err := os.ReadFile(specFile)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(string(specFileContents)).To(MatchJSON(`{
@@ -87,7 +86,7 @@ var _ = Describe("Main", func() {
 					return err
 				}, 5).ShouldNot(HaveOccurred())
 
-				specFileContents, err := ioutil.ReadFile(specFile)
+				specFileContents, err := os.ReadFile(specFile)
 				Expect(err).NotTo(HaveOccurred())
 
 				Expect(string(specFileContents)).To(MatchJSON(`{
