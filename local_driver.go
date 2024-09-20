@@ -79,7 +79,10 @@ func (d *LocalDriver) Create(env dockerdriver.Env, createRequest dockerdriver.Cr
 		logger.Info("creating-volume-folder", lager.Data{"volume": createDir})
 		orig := d.osHelper.Umask(000)
 		defer d.osHelper.Umask(orig)
-		d.os.MkdirAll(createDir, os.ModePerm)
+		err := d.os.MkdirAll(createDir, os.ModePerm)
+		if err != nil {
+			logger.Fatal("failed-creating-path", err, lager.Data{"path": createDir})
+		}
 
 		return dockerdriver.ErrorResponse{}
 	}
@@ -279,7 +282,10 @@ func (d *LocalDriver) mountPath(logger lager.Logger, volumeId string) string {
 	mountsPathRoot := fmt.Sprintf("%s%s", dir, MountsRootDir)
 	orig := d.osHelper.Umask(000)
 	defer d.osHelper.Umask(orig)
-	d.os.MkdirAll(mountsPathRoot, os.ModePerm)
+	err = d.os.MkdirAll(mountsPathRoot, os.ModePerm)
+	if err != nil {
+		logger.Fatal("failed-creating-path", err, lager.Data{"path": mountsPathRoot})
+	}
 
 	return fmt.Sprintf("%s%s%s", mountsPathRoot, string(os.PathSeparator), volumeId)
 }
@@ -293,7 +299,10 @@ func (d *LocalDriver) volumePath(logger lager.Logger, volumeId string) string {
 	volumesPathRoot := d.filepath.Join(dir, VolumesRootDir)
 	orig := d.osHelper.Umask(000)
 	defer d.osHelper.Umask(orig)
-	d.os.MkdirAll(volumesPathRoot, os.ModePerm)
+	err = d.os.MkdirAll(volumesPathRoot, os.ModePerm)
+	if err != nil {
+		logger.Fatal("failed-creating-path", err, lager.Data{"path": volumesPathRoot})
+	}
 
 	if d.uniqueVolumeIds {
 		uniqueVolumeId, err := dockerdriverutils.NewVolumeIdFromEncodedString(volumeId)
