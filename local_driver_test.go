@@ -52,7 +52,6 @@ var _ = Describe("Local Driver", func() {
 		expectedVolume = filepath.Join(mountDir, "_volumes", "test-volume-id")
 		expectedMounts = filepath.Join(mountDir, "_mounts", "test-volume-id")
 
-		//testOs = &osshim.OsShim{}
 		testOs = &os_fake.FakeOs{}
 		testFilepath = &filepathshim.FilepathShim{}
 
